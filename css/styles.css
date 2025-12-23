@@ -795,12 +795,6 @@ td.rows {
   color: var(--text-secondary);
 }
 
-.plan-node-pipeline {
-  font-size: 0.55rem;
-  color: var(--accent);
-  opacity: 0.8;
-}
-
 /* Operator type colors */
 .plan-node.scan {
   border-left: 3px solid var(--warning);

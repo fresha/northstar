@@ -77,7 +77,10 @@ export function setupPlanDropZone() {
       dropdown.style.display = 'block';
       icon.textContent = '▲';
       node.style.zIndex = '100';
-      node.style.width = '320px';
+      // Check if it's a join node (needs more width for predicates)
+      const nodeTitle = node.querySelector('span')?.textContent || '';
+      const expandedWidth = nodeTitle.toUpperCase().includes('JOIN') ? '380px' : '320px';
+      node.style.width = expandedWidth;
     }
   };
   
@@ -329,6 +332,97 @@ function isScanOperator(name) {
 }
 
 /**
+ * Check if node is a join operator
+ */
+function isJoinOperator(name) {
+  return name.toUpperCase().includes('JOIN');
+}
+
+/**
+ * Parse time string to microseconds for calculations
+ */
+function parseTimeToMicroseconds(timeStr) {
+  if (!timeStr || timeStr === 'N/A') return 0;
+  
+  const str = String(timeStr).toLowerCase();
+  const value = parseFloat(str);
+  if (isNaN(value)) return 0;
+  
+  if (str.includes('ms')) return value * 1000;
+  if (str.includes('us')) return value;
+  if (str.includes('ns')) return value / 1000;
+  if (str.includes('s') && !str.includes('us') && !str.includes('ns') && !str.includes('ms')) return value * 1000000;
+  
+  return value;
+}
+
+/**
+ * Format microseconds to human readable time
+ */
+function formatMicroseconds(us) {
+  if (us >= 1000000) return (us / 1000000).toFixed(2) + 's';
+  if (us >= 1000) return (us / 1000).toFixed(2) + 'ms';
+  if (us >= 1) return us.toFixed(2) + 'us';
+  return (us * 1000).toFixed(0) + 'ns';
+}
+
+/**
+ * Get aggregated metrics for a join operator
+ * Finds HASH_JOIN_PROBE and HASH_JOIN_BUILD instances
+ */
+function getJoinMetrics(metricsData) {
+  if (!metricsData || !metricsData.instances || metricsData.instances.length === 0) {
+    return null;
+  }
+  
+  let probeInstance = null;
+  let buildInstance = null;
+  
+  for (const inst of metricsData.instances) {
+    const opName = inst.operatorName.toUpperCase();
+    if (opName.includes('JOIN_PROBE')) {
+      probeInstance = inst.metrics;
+    } else if (opName.includes('JOIN_BUILD')) {
+      buildInstance = inst.metrics;
+    }
+  }
+  
+  // Need at least one of probe or build
+  if (!probeInstance && !buildInstance) {
+    return null;
+  }
+  
+  const probeCommon = probeInstance?.CommonMetrics || {};
+  const probeUnique = probeInstance?.UniqueMetrics || {};
+  const buildCommon = buildInstance?.CommonMetrics || {};
+  const buildUnique = buildInstance?.UniqueMetrics || {};
+  
+  // Extract times
+  const buildTime = buildCommon.OperatorTotalTime || 'N/A';
+  const probeTime = probeCommon.OperatorTotalTime || 'N/A';
+  
+  // Calculate total join time
+  const buildUs = parseTimeToMicroseconds(buildTime);
+  const probeUs = parseTimeToMicroseconds(probeTime);
+  const totalUs = buildUs + probeUs;
+  const totalTime = totalUs > 0 ? formatMicroseconds(totalUs) : 'N/A';
+  
+  return {
+    joinType: probeUnique.JoinType || buildUnique.JoinType || 'N/A',
+    distributionMode: probeUnique.DistributionMode || buildUnique.DistributionMode || 'N/A',
+    joinPredicates: buildUnique.JoinPredicates || 'N/A',
+    buildTime: buildTime,
+    probeTime: probeTime,
+    totalJoinTime: totalTime,
+    buildHashTableTime: buildUnique.BuildHashTableTime || 'N/A',
+    searchHashTableTime: probeUnique.SearchHashTableTime || 'N/A',
+    hashTableMemory: buildUnique.HashTableMemoryUsage || 'N/A',
+    pullRowNum: probeCommon.PullRowNum || '0',
+    buildRows: buildCommon.PushRowNum || '0'
+  };
+}
+
+/**
  * Get row count (PullRowNum) from a node's metrics
  * Returns formatted string or null if not available
  */
@@ -373,9 +467,7 @@ function formatRowCount(value) {
 /**
  * Build metrics dropdown HTML for scan nodes
  */
-function buildMetricsDropdown(node) {
-  if (!isScanOperator(node.name) || !node.metrics) return '';
-  
+function buildScanMetricsDropdown(node) {
   const m = getScanMetrics(node.metrics);
   if (!m) return '';
   
@@ -398,6 +490,63 @@ function buildMetricsDropdown(node) {
       <div style="${rowStyle};border-bottom:none;"><span style="${labelStyle}">Tablets</span><span style="${valueStyle}">${m.tabletCount}</span></div>
     </div>
   `;
+}
+
+/**
+ * Build metrics dropdown HTML for join nodes
+ */
+function buildJoinMetricsDropdown(node) {
+  const m = getJoinMetrics(node.metrics);
+  if (!m) return '';
+  
+  const rowStyle = 'display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #21262d;gap:12px;';
+  const labelStyle = 'color:#8b949e;font-size:11px;white-space:nowrap;flex-shrink:0;';
+  const valueStyle = 'color:#e6edf3;font-size:11px;font-weight:500;text-align:right;word-break:break-all;';
+  const timeStyle = valueStyle + 'color:#3fb950;';
+  const memoryStyle = valueStyle + 'color:#d29922;';
+  const rowsStyle = valueStyle + 'color:#a5d6ff;';
+  const typeStyle = valueStyle + 'color:#f85149;';
+  
+  return `
+    <div id="metrics-${node.id}" class="node-metrics-dropdown" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
+      <div style="${rowStyle}"><span style="${labelStyle}">Join Type</span><span style="${typeStyle}">${m.joinType}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Distribution</span><span style="${valueStyle}">${m.distributionMode}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Predicates</span><span style="${valueStyle}">${m.joinPredicates}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Total Join Time</span><span style="${timeStyle}">${m.totalJoinTime}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Build Time</span><span style="${timeStyle}">${m.buildTime}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Probe Time</span><span style="${timeStyle}">${m.probeTime}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Build Hash Table</span><span style="${timeStyle}">${m.buildHashTableTime}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Search Hash Table</span><span style="${timeStyle}">${m.searchHashTableTime}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Hash Table Memory</span><span style="${memoryStyle}">${m.hashTableMemory}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Build Rows</span><span style="${rowsStyle}">${m.buildRows}</span></div>
+      <div style="${rowStyle};border-bottom:none;"><span style="${labelStyle}">Output Rows</span><span style="${rowsStyle}">${m.pullRowNum}</span></div>
+    </div>
+  `;
+}
+
+/**
+ * Build metrics dropdown HTML based on node type
+ */
+function buildMetricsDropdown(node) {
+  if (!node.metrics) return '';
+  
+  if (isScanOperator(node.name)) {
+    return buildScanMetricsDropdown(node);
+  }
+  
+  if (isJoinOperator(node.name)) {
+    return buildJoinMetricsDropdown(node);
+  }
+  
+  return '';
+}
+
+/**
+ * Check if node has expandable metrics
+ */
+function hasExpandableMetrics(node) {
+  if (!node.metrics) return false;
+  return isScanOperator(node.name) || isJoinOperator(node.name);
 }
 
 /**
@@ -472,7 +621,7 @@ function renderTreeWithSVG(layout, graph) {
     
     const nodeClass = getNodeClass(node.name);
     const displayName = node.name.length > 18 ? node.name.substring(0, 16) + '...' : node.name;
-    const hasMetrics = isScanOperator(node.name) && node.metrics;
+    const hasMetrics = hasExpandableMetrics(node);
     const metricsDropdown = buildMetricsDropdown(node);
     
     const nodeStyle = `

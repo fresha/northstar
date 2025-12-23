@@ -762,65 +762,8 @@ td.rows {
   position: relative;
 }
 
-.plan-node {
-  position: absolute;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  width: 140px;
-  text-align: center;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
 .plan-node:hover {
-  border-color: var(--accent);
+  border-color: var(--accent) !important;
   box-shadow: 0 0 15px var(--accent-dim);
-  z-index: 10;
-}
-
-.plan-node-name {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.2rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.plan-node-id {
-  font-size: 0.6rem;
-  color: var(--text-secondary);
-}
-
-/* Operator type colors */
-.plan-node.scan {
-  border-left: 3px solid var(--warning);
-}
-
-.plan-node.join {
-  border-left: 3px solid var(--danger);
-}
-
-.plan-node.exchange {
-  border-left: 3px solid #58a6ff;
-}
-
-.plan-node.project {
-  border-left: 3px solid var(--text-secondary);
-}
-
-.plan-node.aggregate {
-  border-left: 3px solid #a371f7;
-}
-
-.plan-node.union {
-  border-left: 3px solid var(--success);
-}
-
-.plan-node.result {
-  border-left: 3px solid var(--accent);
 }
 

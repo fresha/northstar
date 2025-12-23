@@ -329,6 +329,48 @@ function isScanOperator(name) {
 }
 
 /**
+ * Get row count (PullRowNum) from a node's metrics
+ * Returns formatted string or null if not available
+ */
+function getNodeRowCount(node) {
+  if (!node || !node.metrics || !node.metrics.instances) return null;
+  
+  // Find an instance with PullRowNum
+  for (const inst of node.metrics.instances) {
+    const common = inst.metrics?.CommonMetrics;
+    if (common && common.PullRowNum) {
+      return formatRowCount(common.PullRowNum);
+    }
+  }
+  return null;
+}
+
+/**
+ * Format row count for display (e.g., "1.5K", "2.3M")
+ */
+function formatRowCount(value) {
+  if (!value) return null;
+  
+  // Handle string values like "207.615K (207615)"
+  let numStr = String(value);
+  
+  // If it already has K/M suffix, extract just the short form
+  const match = numStr.match(/^([\d.]+[KMB]?)/i);
+  if (match) {
+    return match[1];
+  }
+  
+  // Parse as number and format
+  const num = parseFloat(numStr.replace(/[,\s]/g, ''));
+  if (isNaN(num)) return value;
+  
+  if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  return String(num);
+}
+
+/**
  * Build metrics dropdown HTML for scan nodes
  */
 function buildMetricsDropdown(node) {
@@ -389,7 +431,7 @@ function renderTreeWithSVG(layout, graph) {
   }
   collectEdges(root);
   
-  // Render SVG edges
+  // Render SVG edges with row count labels
   let edgeSvg = '';
   for (const edge of edges) {
     const fromPos = positions[edge.from];
@@ -400,7 +442,25 @@ function renderTreeWithSVG(layout, graph) {
       const x2 = toPos.x + NODE_WIDTH / 2;
       const y2 = toPos.y;
       const midY = (y1 + y2) / 2;
+      
+      // Draw the edge path
       edgeSvg += `<path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="#30363d" stroke-width="1.5"/>`;
+      
+      // Get row count from the child node (source of data flow)
+      const childNode = graph[edge.to];
+      const rowCount = getNodeRowCount(childNode) || '0';
+      
+      if (rowCount) {
+        // Calculate label position (on the bezier curve, slightly above midpoint)
+        const labelX = (x1 + x2) / 2;
+        const labelY = midY - 5;
+        const labelWidth = rowCount.length * 7 + 12;
+        
+        edgeSvg += `
+          <rect x="${labelX - labelWidth/2}" y="${labelY - 10}" width="${labelWidth}" height="18" rx="4" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+          <text x="${labelX}" y="${labelY + 2}" text-anchor="middle" fill="#a5d6ff" font-size="10" font-family="JetBrains Mono, monospace">${rowCount}</text>
+        `;
+      }
     }
   }
   

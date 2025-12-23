@@ -339,6 +339,14 @@ function isJoinOperator(name) {
 }
 
 /**
+ * Check if node is an exchange operator
+ */
+function isExchangeOperator(name) {
+  const n = name.toUpperCase();
+  return n === 'EXCHANGE' || n.includes('EXCHANGE');
+}
+
+/**
  * Parse time string to microseconds for calculations
  */
 function parseTimeToMicroseconds(timeStr) {
@@ -419,6 +427,69 @@ function getJoinMetrics(metricsData) {
     hashTableMemory: buildUnique.HashTableMemoryUsage || 'N/A',
     pullRowNum: probeCommon.PullRowNum || '0',
     buildRows: buildCommon.PushRowNum || '0'
+  };
+}
+
+/**
+ * Get aggregated metrics for an exchange operator
+ * Finds EXCHANGE_SOURCE and EXCHANGE_SINK instances
+ */
+function getExchangeMetrics(metricsData) {
+  if (!metricsData || !metricsData.instances || metricsData.instances.length === 0) {
+    return null;
+  }
+  
+  let sourceInstance = null;
+  let sinkInstance = null;
+  
+  for (const inst of metricsData.instances) {
+    const opName = inst.operatorName.toUpperCase();
+    if (opName === 'EXCHANGE_SOURCE') {
+      sourceInstance = inst.metrics;
+    } else if (opName === 'EXCHANGE_SINK') {
+      sinkInstance = inst.metrics;
+    }
+  }
+  
+  // Need at least one of source or sink
+  if (!sourceInstance && !sinkInstance) {
+    return null;
+  }
+  
+  const sourceCommon = sourceInstance?.CommonMetrics || {};
+  const sourceUnique = sourceInstance?.UniqueMetrics || {};
+  const sinkCommon = sinkInstance?.CommonMetrics || {};
+  const sinkUnique = sinkInstance?.UniqueMetrics || {};
+  
+  // Extract times
+  const sourceTime = sourceCommon.OperatorTotalTime || '0';
+  const sinkTime = sinkCommon.OperatorTotalTime || '0';
+  const networkTime = sinkUnique.NetworkTime || '0';
+  
+  // Calculate totals in microseconds
+  const sourceUs = parseTimeToMicroseconds(sourceTime);
+  const sinkUs = parseTimeToMicroseconds(sinkTime);
+  const networkUs = parseTimeToMicroseconds(networkTime);
+  const cpuUs = sourceUs + sinkUs;
+  const totalUs = cpuUs + networkUs;
+  
+  // Calculate percentages
+  const cpuPercent = totalUs > 0 ? Math.round((cpuUs / totalUs) * 100) : 0;
+  const networkPercent = totalUs > 0 ? Math.round((networkUs / totalUs) * 100) : 0;
+  
+  return {
+    partType: sinkUnique.PartType || 'N/A',
+    totalTime: totalUs > 0 ? formatMicroseconds(totalUs) : 'N/A',
+    cpuTime: cpuUs > 0 ? formatMicroseconds(cpuUs) : 'N/A',
+    cpuPercent: cpuPercent,
+    networkTime: networkUs > 0 ? formatMicroseconds(networkUs) : 'N/A',
+    networkPercent: networkPercent,
+    sourceTime: sourceTime,
+    sinkTime: sinkTime,
+    bytesSent: sinkUnique.BytesSent || 'N/A',
+    bytesReceived: sourceUnique.BytesReceived || 'N/A',
+    pullRowNum: sourceCommon.PullRowNum || '0',
+    networkBandwidth: sinkUnique.NetworkBandwidth || 'N/A'
   };
 }
 
@@ -567,6 +638,37 @@ function buildJoinMetricsDropdown(node) {
 }
 
 /**
+ * Build metrics dropdown HTML for exchange nodes
+ */
+function buildExchangeMetricsDropdown(node) {
+  const m = getExchangeMetrics(node.metrics);
+  if (!m) return '';
+  
+  const rowStyle = 'display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #21262d;gap:12px;';
+  const labelStyle = 'color:#8b949e;font-size:11px;white-space:nowrap;flex-shrink:0;';
+  const valueStyle = 'color:#e6edf3;font-size:11px;font-weight:500;text-align:right;word-break:break-all;';
+  const timeStyle = valueStyle + 'color:#3fb950;';
+  const networkStyle = valueStyle + 'color:#58a6ff;';
+  const bytesStyle = valueStyle + 'color:#d29922;';
+  const rowsStyle = valueStyle + 'color:#a5d6ff;';
+  
+  return `
+    <div id="metrics-${node.id}" class="node-metrics-dropdown" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
+      <div style="${rowStyle}"><span style="${labelStyle}">Partition Type</span><span style="${valueStyle}">${m.partType}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Total Time</span><span style="${timeStyle}">${m.totalTime}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">CPU Time</span><span style="${timeStyle}">${m.cpuTime} <span style="color:#8b949e;">(${m.cpuPercent}%)</span></span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Network Time</span><span style="${networkStyle}">${m.networkTime} <span style="color:#8b949e;">(${m.networkPercent}%)</span></span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Source Time</span><span style="${timeStyle}">${m.sourceTime}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Sink Time</span><span style="${timeStyle}">${m.sinkTime}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Bytes Sent</span><span style="${bytesStyle}">${m.bytesSent}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Bytes Received</span><span style="${bytesStyle}">${m.bytesReceived}</span></div>
+      <div style="${rowStyle}"><span style="${labelStyle}">Bandwidth</span><span style="${bytesStyle}">${m.networkBandwidth}</span></div>
+      <div style="${rowStyle};border-bottom:none;"><span style="${labelStyle}">Rows</span><span style="${rowsStyle}">${m.pullRowNum}</span></div>
+    </div>
+  `;
+}
+
+/**
  * Build metrics dropdown HTML based on node type
  */
 function buildMetricsDropdown(node) {
@@ -580,6 +682,10 @@ function buildMetricsDropdown(node) {
     return buildJoinMetricsDropdown(node);
   }
   
+  if (isExchangeOperator(node.name)) {
+    return buildExchangeMetricsDropdown(node);
+  }
+  
   return '';
 }
 
@@ -588,7 +694,7 @@ function buildMetricsDropdown(node) {
  */
 function hasExpandableMetrics(node) {
   if (!node.metrics) return false;
-  return isScanOperator(node.name) || isJoinOperator(node.name);
+  return isScanOperator(node.name) || isJoinOperator(node.name) || isExchangeOperator(node.name);
 }
 
 /**

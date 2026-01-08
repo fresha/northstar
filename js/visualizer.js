@@ -55,24 +55,12 @@ export function setupPlanDropZone() {
     const dropdown = document.getElementById(`metrics-${nodeId}`);
     const icon = document.getElementById(`icon-${nodeId}`);
     const node = document.getElementById(`node-${nodeId}`);
-    
+
     if (!dropdown) return;
-    
+
     const isHidden = dropdown.style.display === 'none';
-    
-    // Close all other dropdowns first
-    document.querySelectorAll('.node-metrics-dropdown').forEach(d => {
-      d.style.display = 'none';
-    });
-    document.querySelectorAll('.expand-icon').forEach(i => {
-      i.textContent = '▼';
-    });
-    document.querySelectorAll('.plan-node').forEach(n => {
-      n.style.zIndex = '1';
-      n.style.width = '160px';
-    });
-    
-    // Toggle current one
+
+    // Toggle current node only (don't close others)
     if (isHidden) {
       dropdown.style.display = 'block';
       icon.textContent = '▲';
@@ -81,6 +69,11 @@ export function setupPlanDropZone() {
       const nodeTitle = node.querySelector('span')?.textContent || '';
       const expandedWidth = nodeTitle.toUpperCase().includes('JOIN') ? '380px' : '320px';
       node.style.width = expandedWidth;
+    } else {
+      dropdown.style.display = 'none';
+      icon.textContent = '▼';
+      node.style.zIndex = '1';
+      node.style.width = '160px';
     }
   };
   

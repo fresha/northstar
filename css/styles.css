@@ -228,6 +228,22 @@ main {
 #timeCards .section-title { color: var(--success); }
 #scanCards .section-title { color: var(--accent); }
 
+/* Join Summary card sections - matching Scan Summary colors */
+.cards-section#joinMemoryCards {
+  grid-column: 1;
+  grid-row: 1;
+  border-left: 3px solid var(--warning);
+}
+
+.cards-section#joinTimeCards {
+  grid-column: 2;
+  grid-row: 1;
+  border-left: 3px solid var(--success);
+}
+
+#joinMemoryCards .section-title { color: var(--warning); }
+#joinTimeCards .section-title { color: var(--success); }
+
 .summary-cards {
   display: grid;
   gap: 0.75rem;
@@ -239,6 +255,14 @@ main {
 
 #timeCards .summary-cards,
 #scanCards .summary-cards {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+#joinMemoryCards .summary-cards {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+#joinTimeCards .summary-cards {
   grid-template-columns: repeat(4, 1fr);
 }
 
@@ -281,6 +305,13 @@ main {
 
 .card-value.rows {
   color: #a5d6ff;
+}
+
+.card-pct {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin-top: 0.35rem;
+  font-weight: 400;
 }
 
 /* Responsive: stack on smaller screens */

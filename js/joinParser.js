@@ -374,21 +374,30 @@ export function calculateJoinStats(joins) {
   if (joins.length === 0) {
     return {
       totalJoins: 0,
-      totalHashTableMemory: '-',
+      totalTime: '-',
       totalBuildTime: '-',
+      totalBuildTimePct: 0,
       totalProbeTime: '-',
+      totalProbeTimePct: 0,
+      totalHashTableMemory: '-',
       maxHashTableMemory: '-',
       totalRowsSpilled: 0
     };
   }
 
   let totalHashTableMemoryBytes = 0;
+  let totalTimeSeconds = 0;
   let totalBuildTimeSeconds = 0;
   let totalProbeTimeSeconds = 0;
   let maxHashTableMemoryBytes = 0;
   let totalRowsSpilled = 0;
 
   for (const join of joins) {
+    // Sum total time from all operators (already calculated per join)
+    if (join.totalTimeSeconds) {
+      totalTimeSeconds += join.totalTimeSeconds;
+    }
+
     // Parse hash table memory (parseNumericValue returns bytes)
     const memStr = join.build.hashTableMemoryUsage;
     if (memStr && memStr !== '-') {
@@ -418,11 +427,18 @@ export function calculateJoinStats(joins) {
     }
   }
 
+  // Calculate percentages
+  const totalBuildTimePct = totalTimeSeconds > 0 ? (totalBuildTimeSeconds / totalTimeSeconds) * 100 : 0;
+  const totalProbeTimePct = totalTimeSeconds > 0 ? (totalProbeTimeSeconds / totalTimeSeconds) * 100 : 0;
+
   return {
     totalJoins: joins.length,
-    totalHashTableMemory: formatBytes(totalHashTableMemoryBytes),
+    totalTime: formatTime(totalTimeSeconds),
     totalBuildTime: formatTime(totalBuildTimeSeconds),
+    totalBuildTimePct: totalBuildTimePct,
     totalProbeTime: formatTime(totalProbeTimeSeconds),
+    totalProbeTimePct: totalProbeTimePct,
+    totalHashTableMemory: formatBytes(totalHashTableMemoryBytes),
     maxHashTableMemory: formatBytes(maxHashTableMemoryBytes),
     totalRowsSpilled: totalRowsSpilled
   };

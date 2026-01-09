@@ -98,6 +98,15 @@ function renderJoinSummaryCards(joins, execution) {
     </div>
   `).join('');
 
+  // Helper to render cards with percentage subtitle
+  const renderCardsWithPct = (cards) => cards.map(c => `
+    <div class="card">
+      <div class="card-label">${c.label}</div>
+      <div class="card-value ${c.type}">${c.value}</div>
+      ${c.pct !== undefined ? `<div class="card-pct">${c.pct.toFixed(1)}% of total</div>` : ''}
+    </div>
+  `).join('');
+
   // Memory Section
   const memoryCards = [
     { label: 'Total Hash Table Memory', value: stats.totalHashTableMemory, type: 'bytes' },
@@ -106,13 +115,14 @@ function renderJoinSummaryCards(joins, execution) {
   ];
   document.querySelector('#joinMemoryCards .summary-cards').innerHTML = renderCards(memoryCards);
 
-  // Time Section
+  // Time Section - with percentages for build/probe
   const timeCards = [
     { label: 'Total Join Operators', value: stats.totalJoins, type: 'number' },
-    { label: 'Total Build Time', value: stats.totalBuildTime, type: 'time' },
-    { label: 'Total Probe Time', value: stats.totalProbeTime, type: 'time' },
+    { label: 'Total Time', value: stats.totalTime, type: 'time' },
+    { label: 'Total Build Time', value: stats.totalBuildTime, type: 'time', pct: stats.totalBuildTimePct },
+    { label: 'Total Probe Time', value: stats.totalProbeTime, type: 'time', pct: stats.totalProbeTimePct },
   ];
-  document.querySelector('#joinTimeCards .summary-cards').innerHTML = renderCards(timeCards);
+  document.querySelector('#joinTimeCards .summary-cards').innerHTML = renderCardsWithPct(timeCards);
 }
 
 /**

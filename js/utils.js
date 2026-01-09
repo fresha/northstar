@@ -73,3 +73,18 @@ export function formatBytes(bytes) {
   return bytes.toFixed(2) + ' B';
 }
 
+// Format time (input in seconds, output human readable)
+export function formatTime(seconds) {
+  if (seconds === 0) return '0ns';
+
+  // Convert to nanoseconds for precision
+  const ns = seconds * 1e9;
+
+  if (ns >= 3600e9) return (ns / 3600e9).toFixed(2) + 'h';
+  if (ns >= 60e9) return (ns / 60e9).toFixed(2) + 'm';
+  if (ns >= 1e9) return (ns / 1e9).toFixed(2) + 's';
+  if (ns >= 1e6) return (ns / 1e6).toFixed(2) + 'ms';
+  if (ns >= 1e3) return (ns / 1e3).toFixed(2) + 'us';
+  return ns.toFixed(0) + 'ns';
+}
+

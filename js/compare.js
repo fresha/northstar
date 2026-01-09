@@ -3,7 +3,7 @@
  */
 
 import { parseNumericValue, sumMetric, formatNumber, formatBytes } from './utils.js';
-import { findConnectorScans } from './parser.js';
+import { findConnectorScans } from './scanParser.js';
 
 // Store loaded comparison data
 let compareData = {

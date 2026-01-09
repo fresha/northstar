@@ -27,7 +27,8 @@
        Tab Navigation
        ======================================== -->
   <nav class="tab-nav">
-    <button class="tab-btn active" data-tab="single">Single Query</button>
+    <button class="tab-btn active" data-tab="single">Scan Summary</button>
+    <button class="tab-btn" data-tab="join">Join Summary</button>
     <button class="tab-btn" data-tab="compare">Query Comparison</button>
     <button class="tab-btn" data-tab="plan">Query Plan</button>
   </nav>
@@ -99,6 +100,63 @@
       </section>
     </div>
     </div> <!-- End of tab-single -->
+
+    <!-- ====== JOIN SUMMARY TAB ====== -->
+    <div class="tab-panel" id="tab-join">
+      <!-- Drop Zone: Visible initially for file upload -->
+      <div class="drop-zone" id="joinDropZone">
+        <div class="drop-zone-icon">🔗</div>
+        <h2>Drop your query profile JSON here</h2>
+        <p>or click to browse files</p>
+        <input type="file" id="joinFileInput" accept=".json">
+      </div>
+
+      <!-- Dashboard: Hidden until a file is loaded -->
+      <div class="dashboard" id="joinDashboard">
+
+        <!-- Query Info Panel -->
+        <section class="query-info">
+          <h2>Query Information</h2>
+          <div class="query-meta" id="joinQueryMeta">
+            <!-- Populated by JavaScript -->
+          </div>
+        </section>
+
+        <!-- Summary Cards -->
+        <div class="cards-container">
+          <section class="cards-section" id="joinMemoryCards">
+            <h3 class="section-title">Join Memory</h3>
+            <div class="summary-cards">
+              <!-- Populated by JavaScript -->
+            </div>
+          </section>
+
+          <section class="cards-section" id="joinTimeCards">
+            <h3 class="section-title">Join Time</h3>
+            <div class="summary-cards">
+              <!-- Populated by JavaScript -->
+            </div>
+          </section>
+        </div>
+
+        <!-- HASH_JOIN Table -->
+        <section class="table-section">
+          <div class="table-header">
+            <h2>🔗 HASH_JOIN Operators</h2>
+          </div>
+          <div class="table-container">
+            <table id="joinTable">
+              <thead id="joinTableHead">
+                <!-- Populated by JavaScript: group headers + column headers -->
+              </thead>
+              <tbody id="joinTableBody">
+                <!-- Populated by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div> <!-- End of tab-join -->
 
     <!-- ====== QUERY COMPARISON TAB ====== -->
     <div class="tab-panel" id="tab-compare">

@@ -391,6 +391,20 @@ tr.group-header-row th.group-spacer {
   border-bottom: 1px solid var(--border);
 }
 
+/* Probe Side header - teal/cyan accent */
+tr.group-header-row th.probe-header {
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.15), rgba(0, 212, 170, 0.05));
+  color: #00d4aa;
+  border-bottom: 2px solid #00d4aa;
+}
+
+/* Build Side header - orange/yellow accent */
+tr.group-header-row th.build-header {
+  background: linear-gradient(135deg, rgba(210, 153, 34, 0.15), rgba(210, 153, 34, 0.05));
+  color: #d29922;
+  border-bottom: 2px solid #d29922;
+}
+
 /* Add subtle left border to first column of each group */
 th.group-start,
 td.group-start {

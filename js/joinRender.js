@@ -11,13 +11,14 @@ export const JOIN_METRICS_CONFIG = [
   { key: 'planNodeId',           label: 'Plan Node ID',      source: 'summary', type: 'number',    group: 'Summary' },
   { key: 'joinType',             label: 'Join Type',         source: 'summary', type: 'string',    group: 'Summary' },
   { key: 'distributionMode',     label: 'Distribution',      source: 'summary', type: 'string',    group: 'Summary' },
+  { key: 'totalTime',            label: 'Total Time',        source: 'summary', type: 'time',      group: 'Summary' },
   { key: 'joinPredicates',       label: 'Predicates',        source: 'summary', type: 'predicate', group: 'Summary' },
 
   // === Probe Side (HASH_JOIN_PROBE) ===
   { key: 'pullRowNum',           label: 'Pull Rows',         source: 'probe',   type: 'rows',      group: 'Probe Side' },
   { key: 'pushRowNum',           label: 'Push Rows',         source: 'probe',   type: 'rows',      group: 'Probe Side' },
   { key: 'outputChunkBytes',     label: 'Output Bytes',      source: 'probe',   type: 'bytes',     group: 'Probe Side' },
-  { key: 'operatorTotalTime',    label: 'Operator Time',     source: 'probe',   type: 'time',      group: 'Probe Side' },
+  { key: 'operatorTotalTime',    label: 'Operator Time',     source: 'probe',   type: 'timeWithPct', group: 'Probe Side' },
   { key: 'searchHashTableTime',  label: 'Search HT Time',    source: 'probe',   type: 'time',      group: 'Probe Side' },
   { key: 'probeConjunctEvaluateTime', label: 'Probe Conjunct', source: 'probe', type: 'time',      group: 'Probe Side' },
 
@@ -25,7 +26,7 @@ export const JOIN_METRICS_CONFIG = [
   { key: 'pushRowNum',           label: 'Push Rows',         source: 'build',   type: 'rows',      group: 'Build Side' },
   { key: 'hashTableMemoryUsage', label: 'HT Memory',         source: 'build',   type: 'bytes',     group: 'Build Side' },
   { key: 'peakRevocableMemoryBytes', label: 'Peak Revocable', source: 'build', type: 'bytes',     group: 'Build Side' },
-  { key: 'operatorTotalTime',    label: 'Operator Time',     source: 'build',   type: 'time',      group: 'Build Side' },
+  { key: 'operatorTotalTime',    label: 'Operator Time',     source: 'build',   type: 'timeWithPct', group: 'Build Side' },
   { key: 'buildHashTableTime',   label: 'Build HT Time',     source: 'build',   type: 'time',      group: 'Build Side' },
   { key: 'copyRightTableChunkTime', label: 'Copy Right Time', source: 'build', type: 'time',      group: 'Build Side' },
   { key: 'rowsSpilled',          label: 'Rows Spilled',      source: 'build',   type: 'rows',      group: 'Build Side' },
@@ -251,6 +252,15 @@ function renderJoinTableBody(joins) {
         case 'time':
           classNames.push('number', 'time');
           break;
+        case 'timeWithPct':
+          classNames.push('number', 'time');
+          // Get the percentage from the source (probe or build)
+          const sourceObj = col.source === 'probe' ? join.probe : join.build;
+          if (sourceObj && sourceObj.operatorTimePct !== undefined) {
+            const pct = sourceObj.operatorTimePct.toFixed(1);
+            displayValue = `${value} (${pct}%)`;
+          }
+          break;
         case 'rows':
           classNames.push('number', 'rows');
           break;
@@ -327,8 +337,16 @@ function sortJoinTable(th) {
 
     // Parse numeric values
     if (config.type !== 'string' && config.type !== 'predicate') {
-      valA = parseNumericValue(valA);
-      valB = parseNumericValue(valB);
+      // For timeWithPct, sort by the percentage for more meaningful ordering
+      if (config.type === 'timeWithPct') {
+        const sourceObjA = config.source === 'probe' ? a.probe : a.build;
+        const sourceObjB = config.source === 'probe' ? b.probe : b.build;
+        valA = sourceObjA ? sourceObjA.operatorTimePct : 0;
+        valB = sourceObjB ? sourceObjB.operatorTimePct : 0;
+      } else {
+        valA = parseNumericValue(valA);
+        valB = parseNumericValue(valB);
+      }
     }
 
     // Compare

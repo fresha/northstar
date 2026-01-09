@@ -498,33 +498,30 @@ function getNodeTotalTime(metricsData) {
   if (!metricsData || !metricsData.instances || metricsData.instances.length === 0) {
     return null;
   }
-  
+
   let totalUs = 0;
-  
+
   for (const inst of metricsData.instances) {
     const opName = inst.operatorName.toUpperCase();
     const common = inst.metrics?.CommonMetrics || {};
     const unique = inst.metrics?.UniqueMetrics || {};
-    
-    // Skip subordinate operators that are just buffering (their time is minimal)
-    if (opName === 'CHUNK_ACCUMULATE') continue;
-    
+
     // Add OperatorTotalTime for all operators
     if (common.OperatorTotalTime) {
       totalUs += parseTimeToMicroseconds(common.OperatorTotalTime);
     }
-    
+
     // Add ScanTime for SCAN operators
     if (opName.includes('SCAN') && unique.ScanTime) {
       totalUs += parseTimeToMicroseconds(unique.ScanTime);
     }
-    
+
     // Add NetworkTime for EXCHANGE_SINK operators
     if (opName === 'EXCHANGE_SINK' && unique.NetworkTime) {
       totalUs += parseTimeToMicroseconds(unique.NetworkTime);
     }
   }
-  
+
   return totalUs > 0 ? formatMicroseconds(totalUs) : null;
 }
 

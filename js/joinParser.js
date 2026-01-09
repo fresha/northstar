@@ -5,6 +5,58 @@
 import { parseNumericValue, formatBytes, formatTime } from './utils.js';
 
 /**
+ * Sum OperatorTotalTime for all operators with given plan_node_ids
+ * Uses the same Fragment > Pipeline > Operator traversal as visualizer.js
+ * Returns a Map of planNodeId -> total time in seconds
+ */
+export function sumOperatorTimesByPlanNodeId(execution, targetPlanNodeIds) {
+  const timesByPlanNodeId = new Map();
+
+  // Initialize all target plan node IDs with 0
+  for (const id of targetPlanNodeIds) {
+    timesByPlanNodeId.set(id, 0);
+  }
+
+  // Iterate through Fragments (same as visualizer.js extractMetricsByPlanNodeId)
+  for (const fragKey of Object.keys(execution)) {
+    if (!fragKey.startsWith('Fragment ')) continue;
+
+    const fragment = execution[fragKey];
+
+    // Iterate through Pipelines
+    for (const pipeKey of Object.keys(fragment)) {
+      const pipeMatch = pipeKey.match(/Pipeline \(id=(\d+)\)/);
+      if (!pipeMatch) continue;
+
+      const pipeline = fragment[pipeKey];
+
+      // Iterate through Operators
+      for (const opKey of Object.keys(pipeline)) {
+        const opMatch = opKey.match(/(.+) \(plan_node_id=(-?\d+)\)/);
+        if (!opMatch) continue;
+
+        const planNodeId = opMatch[2];
+
+        // Add OperatorTotalTime for operators with matching plan_node_id
+        if (targetPlanNodeIds.has(planNodeId)) {
+          const opData = pipeline[opKey];
+          const timeStr = opData?.CommonMetrics?.OperatorTotalTime;
+          if (timeStr) {
+            const timeSeconds = parseNumericValue(timeStr);
+            timesByPlanNodeId.set(
+              planNodeId,
+              timesByPlanNodeId.get(planNodeId) + timeSeconds
+            );
+          }
+        }
+      }
+    }
+  }
+
+  return timesByPlanNodeId;
+}
+
+/**
  * Recursively find all HASH_JOIN operators (probe and build sides) in the execution data
  */
 export function findHashJoins(obj, path = '', context = {}) {
@@ -112,8 +164,10 @@ export function combineJoinOperators(probes, builds) {
 
 /**
  * Extract join metrics for display in the table
+ * @param {Object} join - The join object with probe and build operators
+ * @param {number} totalTimeSeconds - Total time from ALL operators with this plan_node_id
  */
-export function extractJoinMetrics(join) {
+export function extractJoinMetrics(join, totalTimeSeconds) {
   const probe = join.probe || {};
   const build = join.build || {};
   const probeCommon = probe.commonMetrics || {};
@@ -121,18 +175,31 @@ export function extractJoinMetrics(join) {
   const buildCommon = build.commonMetrics || {};
   const buildUnique = build.uniqueMetrics || {};
 
+  // Parse operator times for probe and build
+  const probeTimeStr = probeCommon.OperatorTotalTime || '-';
+  const buildTimeStr = buildCommon.OperatorTotalTime || '-';
+  const probeTimeSeconds = parseNumericValue(probeTimeStr);
+  const buildTimeSeconds = parseNumericValue(buildTimeStr);
+
+  // Calculate percentages based on total time from ALL operators
+  const probeTimePct = totalTimeSeconds > 0 ? (probeTimeSeconds / totalTimeSeconds) * 100 : 0;
+  const buildTimePct = totalTimeSeconds > 0 ? (buildTimeSeconds / totalTimeSeconds) * 100 : 0;
+
   return {
     // Summary section (from probe and build)
     planNodeId: join.planNodeId,
     joinType: probeUnique.JoinType || buildUnique.JoinType || '-',
     distributionMode: probeUnique.DistributionMode || buildUnique.DistributionMode || '-',
+    totalTime: formatTime(totalTimeSeconds),
+    totalTimeSeconds: totalTimeSeconds,
     joinPredicates: buildUnique.JoinPredicates || probeUnique.JoinPredicates || '-',
 
     // Probe side metrics
     probe: {
       pushRowNum: probeCommon.PushRowNum || '-',
       pullRowNum: probeCommon.PullRowNum || '-',
-      operatorTotalTime: probeCommon.OperatorTotalTime || '-',
+      operatorTotalTime: probeTimeStr,
+      operatorTimePct: probeTimePct,
       searchHashTableTime: probeUnique.SearchHashTableTime || '-',
       probeConjunctEvaluateTime: probeUnique.ProbeConjunctEvaluateTime || '-',
       outputChunkBytes: probeCommon.OutputChunkBytes || '-'
@@ -143,7 +210,8 @@ export function extractJoinMetrics(join) {
       pushRowNum: buildCommon.PushRowNum || '-',
       hashTableMemoryUsage: buildUnique.HashTableMemoryUsage || '-',
       peakRevocableMemoryBytes: buildUnique.PeakRevocableMemoryBytes || '-',
-      operatorTotalTime: buildCommon.OperatorTotalTime || '-',
+      operatorTotalTime: buildTimeStr,
+      operatorTimePct: buildTimePct,
       buildHashTableTime: buildUnique.BuildHashTableTime || '-',
       copyRightTableChunkTime: buildUnique.CopyRightTableChunkTime || '-',
       rowsSpilled: buildUnique.RowsSpilled || '-'
@@ -169,10 +237,20 @@ export function processJoinProfile(json) {
   // Combine probe and build sides
   const joins = combineJoinOperators(probes, builds);
 
-  // Extract metrics for each join
-  const joinMetrics = joins.map(extractJoinMetrics);
+  // Get all plan_node_ids from joins
+  const planNodeIds = new Set(joins.map(j => j.planNodeId));
+
+  // Sum OperatorTotalTime for ALL operators with each plan_node_id
+  const totalTimesByPlanNodeId = sumOperatorTimesByPlanNodeId(execution, planNodeIds);
+
+  // Extract metrics for each join, passing the total time from all operators
+  const joinMetrics = joins.map(join => {
+    const totalTime = totalTimesByPlanNodeId.get(join.planNodeId) || 0;
+    return extractJoinMetrics(join, totalTime);
+  });
 
   console.log(`Found ${joins.length} HASH_JOIN operators`);
+  console.log('Total times by plan_node_id:', Object.fromEntries(totalTimesByPlanNodeId));
   console.log('Join data:', joinMetrics);
 
   return { summary, execution, joins: joinMetrics };

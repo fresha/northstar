@@ -821,25 +821,26 @@ td.rows {
    Footer
    ======================================== */
 .site-footer {
-  padding: 1rem 2rem;
+  padding: 1.5rem 2rem;
   text-align: center;
+  background: var(--bg-secondary);
   border-top: 1px solid var(--border);
+  margin-top: 2rem;
 }
 
 .footer-text {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
+  letter-spacing: 0.03em;
 }
 
 .footer-text a {
-  color: var(--text-secondary);
-  text-decoration: underline;
-  text-decoration-color: var(--border);
-  text-underline-offset: 2px;
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
 }
 
 .footer-text a:hover {
-  color: var(--accent);
-  text-decoration-color: var(--accent);
+  opacity: 0.8;
 }
 

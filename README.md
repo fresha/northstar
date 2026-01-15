@@ -1,5 +1,7 @@
 # NorthStar
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A client-side web application for analyzing StarRocks query profiles. Upload JSON query profile exports and get visual analysis of scan operators, join operators, and query execution plans.
 
 **[Live Demo](https://gomezgoes-con.github.io/northstar/)**

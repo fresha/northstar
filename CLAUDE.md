@@ -103,6 +103,31 @@ for (const fragKey of Object.keys(execution)) {
 - EXCHANGE_SINK PushRowNum = rows **before** broadcast
 - EXCHANGE_SOURCE PullRowNum = rows **after** broadcast (multiplied)
 
+### Query Plan Viewport (visualizer.js)
+The Query Plan tab has a Miro/Figma-style infinite canvas viewport:
+
+**Camera Model**: `camera = { x, y, zoom }` tracks world coordinates at viewport top-left
+- Transform formula: `translate(${-camera.x * camera.zoom}px, ${-camera.y * camera.zoom}px) scale(${camera.zoom})`
+- Transform origin is `0 0` (top-left)
+
+**User Interactions**:
+- Mouse wheel: Zoom to cursor (point under cursor stays fixed)
+- Space + left-drag OR right-drag: Pan
+- Double-click: Fit to view
+- Keyboard: `+/-` zoom, `0/F` fit, arrows pan
+
+**DOM Structure** (critical for clipping):
+```
+.plan-container (position: relative)
+├── .plan-canvas (overflow: hidden)
+│   └── .zoom-container (CSS transform applied here)
+├── .zoom-indicator (absolute, child of container NOT canvas)
+├── .canvas-toolbar (absolute, child of container NOT canvas)
+└── .viewport-minimap (absolute, child of container NOT canvas)
+```
+
+**State Preservation**: Camera position is saved before re-render (expand/collapse) and restored after.
+
 ## Coding Guidelines
 
 ### Do

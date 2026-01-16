@@ -140,6 +140,17 @@ main {
   margin-bottom: 1rem;
 }
 
+.query-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.query-info-header h2 {
+  margin-bottom: 0;
+}
+
 .query-meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

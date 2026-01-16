@@ -186,6 +186,24 @@ function loadJoinFile(file) {
 }
 
 // ========================================
+// Reset Buttons - Load New Profile
+// ========================================
+
+// Scan Summary reset button
+document.getElementById('scanReset').addEventListener('click', () => {
+  dropZone.classList.remove('hidden');
+  dashboard.classList.remove('visible');
+  fileInput.value = ''; // Clear file input so same file can be re-selected
+});
+
+// Join Summary reset button
+document.getElementById('joinReset').addEventListener('click', () => {
+  joinDropZone.classList.remove('hidden');
+  joinDashboard.classList.remove('visible');
+  joinFileInput.value = ''; // Clear file input so same file can be re-selected
+});
+
+// ========================================
 // Initialize
 // ========================================
 

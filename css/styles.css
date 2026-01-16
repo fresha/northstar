@@ -752,6 +752,8 @@ td.rows {
    ======================================== */
 .plan-container {
   padding: 1rem;
+  position: relative;
+  overflow: visible;
 }
 
 .plan-header {
@@ -786,10 +788,139 @@ td.rows {
 }
 
 .plan-canvas {
-  overflow: auto;
-  padding: 2rem;
-  min-height: 600px;
+  overflow: hidden;
+  padding: 0;
+  /* Use viewport height minus header (~56px), nav (~50px), main padding (32px), plan-header (~70px), and some bottom margin */
+  height: calc(100vh - 220px);
+  min-height: 400px;
+  position: relative;
+  cursor: grab;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
+
+.plan-canvas.panning { cursor: grabbing; }
+
+/* Zoom Container - receives CSS transform for pan/zoom */
+.zoom-container {
+  position: relative;
+  transform-origin: 0 0;
+}
+
+.zoom-container.smooth-transform {
+  transition: transform 300ms ease-out;
+}
+
+/* Floating Toolbar - positioned inside canvas area */
+.canvas-toolbar {
+  position: absolute;
+  top: 80px;  /* Account for header height */
+  right: 24px;
+  display: none;
+  gap: 4px;
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 300;
+}
+
+.canvas-toolbar.visible { display: flex; }
+
+.canvas-toolbar button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.canvas-toolbar button:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent);
+}
+
+/* Zoom Indicator */
+.zoom-indicator {
+  position: absolute;
+  top: 134px;  /* Below toolbar */
+  right: 24px;
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 300;
+  pointer-events: none;
+}
+
+.zoom-indicator.visible { opacity: 1; }
+.zoom-indicator.at-100 { color: var(--accent); border-color: var(--accent); }
+.zoom-indicator.at-limit { color: var(--warning); border-color: var(--warning); }
+
+/* Minimap - positioned inside canvas area */
+.viewport-minimap {
+  position: absolute;
+  top: 80px;  /* Account for header height */
+  left: 24px;
+  width: 180px;
+  height: 120px;
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 300;
+  cursor: pointer;
+  display: none;
+  backdrop-filter: blur(8px);
+}
+
+.viewport-minimap.visible { display: block; }
+
+.minimap-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+}
+
+.minimap-nodes {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.minimap-viewport {
+  position: absolute;
+  border: 2px solid var(--accent);
+  background: rgba(0, 212, 170, 0.1);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.minimap-node {
+  position: absolute;
+  border-radius: 2px;
+  width: 6px;
+  height: 4px;
+}
+
+.minimap-node.scan { background: var(--warning); }
+.minimap-node.join { background: var(--danger); }
+.minimap-node.exchange { background: #58a6ff; }
+.minimap-node.other { background: var(--text-secondary); }
 
 .plan-svg-container {
   position: relative;
@@ -812,9 +943,68 @@ td.rows {
   position: relative;
 }
 
+/* Plan node base styling with transitions */
+.plan-node {
+  transition: width 0.15s ease-out, box-shadow 0.2s ease-out, transform 0.15s ease-out;
+}
+
 .plan-node:hover {
   border-color: var(--accent) !important;
   box-shadow: 0 0 15px var(--accent-dim);
+}
+
+/* Clickable nodes have visual affordance */
+.plan-node.has-metrics {
+  cursor: pointer;
+}
+
+/* Subtle expandable indicator - small dot at bottom */
+.plan-node.has-metrics::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.4;
+  border-radius: 1px;
+  transition: opacity 0.15s, width 0.15s;
+}
+
+.plan-node.has-metrics:hover {
+  border-color: var(--accent) !important;
+}
+
+.plan-node.has-metrics:hover::after {
+  opacity: 0.8;
+  width: 24px;
+}
+
+.plan-node.has-metrics:hover .expand-icon {
+  transform: scale(1.3);
+  color: var(--accent);
+}
+
+/* Expanded node styling - elevated overlay appearance */
+.plan-node.expanded {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+              0 0 0 1px var(--accent);
+  transform: translateY(-2px);
+}
+
+/* Smooth dropdown animation */
+.node-metrics-dropdown {
+  transition: opacity 0.15s ease-out;
+}
+
+.node-metrics-dropdown[style*="display: none"] {
+  opacity: 0;
+}
+
+.node-metrics-dropdown[style*="display: block"] {
+  opacity: 1;
 }
 
 /* ========================================

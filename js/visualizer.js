@@ -11,6 +11,27 @@ const NODE_HEIGHT = 65;
 const HORIZONTAL_SPACING = 40;
 const VERTICAL_SPACING = 80;
 
+// Viewport constants
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 6;
+const ZOOM_STEP = 1.1;
+const PAN_STEP = 80;
+
+// Viewport state
+let camera = { x: 0, y: 0, zoom: 1 };
+let viewportState = {
+  isPanning: false,
+  isSpacePressed: false,
+  startX: 0,
+  startY: 0,
+  startCameraX: 0,
+  startCameraY: 0,
+  pointerId: null
+};
+let currentContentSize = { width: 0, height: 0 };
+let indicatorTimeout = null;
+let currentNodePositions = {}; // For minimap rendering
+
 // DOM elements
 let planDropZone, planFileInput, planContainer, planCanvas, planReset;
 
@@ -46,6 +67,7 @@ export function setupPlanDropZone() {
   });
 
   planReset.addEventListener('click', () => {
+    cleanupViewport();
     planDropZone.style.display = 'block';
     planContainer.style.display = 'none';
     planCanvas.innerHTML = '';
@@ -67,6 +89,7 @@ export function setupPlanDropZone() {
       dropdown.style.display = 'block';
       icon.textContent = '▲';
       node.style.zIndex = '100';
+      node.classList.add('expanded');
       // Check if it's a join node (needs more width for predicates)
       const nodeTitle = node.querySelector('span')?.textContent || '';
       const expandedWidth = nodeTitle.toUpperCase().includes('JOIN') ? '380px' : '320px';
@@ -75,25 +98,446 @@ export function setupPlanDropZone() {
       dropdown.style.display = 'none';
       icon.textContent = '▼';
       node.style.zIndex = '1';
+      node.classList.remove('expanded');
       node.style.width = '160px';
     }
   };
   
-  // Close on outside click
+  // Close nodes only when clicking outside the entire plan container
+  // (not when clicking empty space inside the canvas - that's for panning)
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.plan-node')) {
-      document.querySelectorAll('.node-metrics-dropdown').forEach(d => {
-        d.style.display = 'none';
-      });
-      document.querySelectorAll('.expand-icon').forEach(i => {
-        i.textContent = '▼';
-      });
-      document.querySelectorAll('.plan-node').forEach(n => {
-        n.style.zIndex = '1';
-        n.style.width = '160px';
-      });
+    // Don't close if clicking inside the plan container at all
+    if (e.target.closest('.plan-container')) {
+      return;
     }
+    // Close all expanded nodes when clicking outside
+    document.querySelectorAll('.node-metrics-dropdown').forEach(d => {
+      d.style.display = 'none';
+    });
+    document.querySelectorAll('.expand-icon').forEach(i => {
+      i.textContent = '▼';
+    });
+    document.querySelectorAll('.plan-node').forEach(n => {
+      n.style.zIndex = '1';
+      n.classList.remove('expanded');
+      n.style.width = '160px';
+    });
   });
+
+  // Wire up toolbar buttons
+  document.getElementById('viewportZoomIn')?.addEventListener('click', () => zoomToCenter(ZOOM_STEP, true));
+  document.getElementById('viewportZoomOut')?.addEventListener('click', () => zoomToCenter(1 / ZOOM_STEP, true));
+  document.getElementById('viewportFit')?.addEventListener('click', () => fitToView(true));
+}
+
+// ========================================
+// Viewport Functions
+// ========================================
+
+/**
+ * Apply CSS transform to zoom-container
+ */
+function updateTransform(smooth = false) {
+  const zoomContainer = planCanvas?.querySelector('.zoom-container');
+  if (!zoomContainer) return;
+
+  if (smooth) {
+    zoomContainer.classList.add('smooth-transform');
+    setTimeout(() => zoomContainer.classList.remove('smooth-transform'), 300);
+  } else {
+    zoomContainer.classList.remove('smooth-transform');
+  }
+
+  zoomContainer.style.transform =
+    `translate(${-camera.x * camera.zoom}px, ${-camera.y * camera.zoom}px) scale(${camera.zoom})`;
+  zoomContainer.style.transformOrigin = '0 0';
+
+  updateZoomIndicator();
+  updateMinimap();
+}
+
+/**
+ * Clamp camera to prevent infinite panning
+ */
+function clampCameraToBounds() {
+  if (currentContentSize.width === 0 || currentContentSize.height === 0) return;
+
+  const rect = planCanvas.getBoundingClientRect();
+  const viewportWidth = rect.width / camera.zoom;
+  const viewportHeight = rect.height / camera.zoom;
+  const contentWidth = currentContentSize.width;
+  const contentHeight = currentContentSize.height;
+
+  // Allow centering when viewport > content
+  const marginX = Math.max(0, (viewportWidth - contentWidth) / 2);
+  const marginY = Math.max(0, (viewportHeight - contentHeight) / 2);
+
+  // Allow 50% overscroll beyond content
+  const overscroll = 0.5;
+  const minX = -contentWidth * overscroll - marginX;
+  const maxX = contentWidth * (1 + overscroll) - viewportWidth + marginX;
+  const minY = -contentHeight * overscroll - marginY;
+  const maxY = contentHeight * (1 + overscroll) - viewportHeight + marginY;
+
+  if (maxX > minX) camera.x = Math.max(minX, Math.min(maxX, camera.x));
+  if (maxY > minY) camera.y = Math.max(minY, Math.min(maxY, camera.y));
+}
+
+/**
+ * Fit content to view
+ */
+function fitToView(smooth = true) {
+  if (!planCanvas) return;
+
+  const containerRect = planCanvas.getBoundingClientRect();
+  const contentWidth = currentContentSize.width;
+  const contentHeight = currentContentSize.height;
+
+  if (contentWidth === 0 || contentHeight === 0) return;
+
+  // Calculate scale to fit with padding
+  const padding = 40;
+  const scaleX = (containerRect.width - padding * 2) / contentWidth;
+  const scaleY = (containerRect.height - padding * 2) / contentHeight;
+  const scale = Math.min(scaleX, scaleY, 1); // Don't zoom beyond 100%
+
+  camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale));
+
+  // Center content
+  camera.x = -(containerRect.width / camera.zoom - contentWidth) / 2;
+  camera.y = -(containerRect.height / camera.zoom - contentHeight) / 2;
+
+  updateTransform(smooth);
+}
+
+/**
+ * Zoom to viewport center
+ */
+function zoomToCenter(zoomDelta, smooth = true) {
+  if (!planCanvas) return;
+
+  const rect = planCanvas.getBoundingClientRect();
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+
+  // Get world position at center before zoom
+  const worldX = camera.x + centerX / camera.zoom;
+  const worldY = camera.y + centerY / camera.zoom;
+
+  // Apply zoom
+  camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, camera.zoom * zoomDelta));
+
+  // Keep center point fixed
+  camera.x = worldX - centerX / camera.zoom;
+  camera.y = worldY - centerY / camera.zoom;
+
+  clampCameraToBounds();
+  updateTransform(smooth);
+}
+
+/**
+ * Pan by pixel delta
+ */
+function panBy(dx, dy, smooth = false) {
+  camera.x -= dx / camera.zoom;
+  camera.y -= dy / camera.zoom;
+  clampCameraToBounds();
+  updateTransform(smooth);
+}
+
+/**
+ * Update zoom indicator display
+ */
+function updateZoomIndicator() {
+  const indicator = document.querySelector('.zoom-indicator');
+  if (!indicator) return;
+
+  const percent = Math.round(camera.zoom * 100);
+  indicator.textContent = `${percent}%`;
+
+  indicator.classList.remove('at-100', 'at-limit');
+  if (Math.abs(camera.zoom - 1) < 0.01) {
+    indicator.classList.add('at-100');
+  } else if (camera.zoom <= MIN_ZOOM || camera.zoom >= MAX_ZOOM) {
+    indicator.classList.add('at-limit');
+  }
+
+  indicator.classList.add('visible');
+  clearTimeout(indicatorTimeout);
+  indicatorTimeout = setTimeout(() => indicator.classList.remove('visible'), 1500);
+}
+
+/**
+ * Update minimap display
+ */
+function updateMinimap() {
+  const minimap = document.querySelector('.viewport-minimap');
+  const minimapNodes = document.querySelector('.minimap-nodes');
+  const minimapViewport = document.querySelector('.minimap-viewport');
+  if (!minimap || !minimapNodes || !minimapViewport || !planCanvas) return;
+
+  const contentWidth = currentContentSize.width;
+  const contentHeight = currentContentSize.height;
+  if (contentWidth === 0 || contentHeight === 0) return;
+
+  const minimapRect = minimap.getBoundingClientRect();
+  const canvasRect = planCanvas.getBoundingClientRect();
+  const padding = 8;
+  const availWidth = minimapRect.width - padding * 2;
+  const availHeight = minimapRect.height - padding * 2;
+
+  // Calculate minimap scale
+  const scale = Math.min(availWidth / contentWidth, availHeight / contentHeight);
+
+  // Render minimap nodes (only if positions changed)
+  const nodeHash = JSON.stringify(currentNodePositions);
+  if (minimapNodes.dataset.hash !== nodeHash) {
+    let nodesHtml = '';
+    for (const [id, pos] of Object.entries(currentNodePositions)) {
+      const nodeClass = pos.nodeClass || 'other';
+      nodesHtml += `<div class="minimap-node ${nodeClass}" style="left:${pos.x * scale}px;top:${pos.y * scale}px;"></div>`;
+    }
+    minimapNodes.innerHTML = nodesHtml;
+    minimapNodes.dataset.hash = nodeHash;
+  }
+
+  // Calculate viewport rectangle position
+  const viewportWidth = canvasRect.width / camera.zoom;
+  const viewportHeight = canvasRect.height / camera.zoom;
+
+  const vpLeft = (camera.x * scale) + padding;
+  const vpTop = (camera.y * scale) + padding;
+  const vpWidth = viewportWidth * scale;
+  const vpHeight = viewportHeight * scale;
+
+  minimapViewport.style.left = `${vpLeft}px`;
+  minimapViewport.style.top = `${vpTop}px`;
+  minimapViewport.style.width = `${vpWidth}px`;
+  minimapViewport.style.height = `${vpHeight}px`;
+}
+
+/**
+ * Setup viewport event handlers
+ */
+function setupViewport() {
+  if (!planCanvas) return;
+
+  // Cleanup previous listeners
+  if (planCanvas._viewportCleanup) {
+    planCanvas._viewportCleanup();
+  }
+
+  // Wheel/pinch: zoom in/out
+  const handleWheel = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = planCanvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Get world position BEFORE zoom
+    const worldX = camera.x + mouseX / camera.zoom;
+    const worldY = camera.y + mouseY / camera.zoom;
+
+    // Apply zoom (1% per tick for smooth trackpad scrolling)
+    const zoomDelta = e.deltaY > 0 ? 0.99 : 1.01;
+    camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, camera.zoom * zoomDelta));
+
+    // Adjust camera so world point stays under cursor
+    camera.x = worldX - mouseX / camera.zoom;
+    camera.y = worldY - mouseY / camera.zoom;
+
+    clampCameraToBounds();
+    updateTransform();
+  };
+
+  // Pointer down - start pan (left-click or right-click)
+  const handlePointerDown = (e) => {
+    // Don't pan if clicking on a node with metrics (let it handle the click)
+    if (e.target.closest('.plan-node.has-metrics')) {
+      return;
+    }
+
+    // Allow panning with left-click (button 0) or right-click (button 2)
+    if (e.button === 0 || e.button === 2) {
+      e.preventDefault();
+      viewportState.isPanning = true;
+      viewportState.pointerId = e.pointerId;
+      viewportState.startX = e.clientX;
+      viewportState.startY = e.clientY;
+      viewportState.startCameraX = camera.x;
+      viewportState.startCameraY = camera.y;
+
+      planCanvas.classList.add('panning');
+      planCanvas.setPointerCapture(e.pointerId);
+    }
+  };
+
+  // Pointer move - continue pan
+  const handlePointerMove = (e) => {
+    if (viewportState.isPanning && e.pointerId === viewportState.pointerId) {
+      const dx = e.clientX - viewportState.startX;
+      const dy = e.clientY - viewportState.startY;
+
+      // Direct 1:1 panning - move canvas by the drag distance
+      camera.x = viewportState.startCameraX - dx / camera.zoom;
+      camera.y = viewportState.startCameraY - dy / camera.zoom;
+
+      clampCameraToBounds();
+      updateTransform();
+    }
+  };
+
+  // Pointer up - end pan
+  const handlePointerUp = (e) => {
+    if (viewportState.isPanning && e.pointerId === viewportState.pointerId) {
+      viewportState.isPanning = false;
+      viewportState.pointerId = null;
+      planCanvas.classList.remove('panning');
+      planCanvas.releasePointerCapture(e.pointerId);
+    }
+  };
+
+  // Double-click to fit
+  const handleDblClick = () => fitToView(true);
+
+  // Context menu - prevent default
+  const handleContextMenu = (e) => e.preventDefault();
+
+  // Keyboard handlers
+  const handleKeyDown = (e) => {
+    // Only handle if plan tab is visible and not in input
+    if (!planContainer || planContainer.style.display === 'none') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    switch (e.key) {
+      case '+':
+      case '=':
+        e.preventDefault();
+        zoomToCenter(ZOOM_STEP, true);
+        break;
+      case '-':
+      case '_':
+        e.preventDefault();
+        zoomToCenter(1 / ZOOM_STEP, true);
+        break;
+      case '0':
+      case 'f':
+      case 'F':
+        e.preventDefault();
+        fitToView(true);
+        break;
+      case 'Home':
+        e.preventDefault();
+        camera.x = 0;
+        camera.y = 0;
+        clampCameraToBounds();
+        updateTransform(true);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        panBy(PAN_STEP, 0);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        panBy(-PAN_STEP, 0);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        panBy(0, PAN_STEP);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        panBy(0, -PAN_STEP);
+        break;
+    }
+  };
+
+  const handleKeyUp = () => {
+    // Reserved for future keyboard interactions
+  };
+
+  // Minimap click to navigate
+  const minimap = document.querySelector('.viewport-minimap');
+  const handleMinimapClick = (e) => {
+    if (!minimap) return;
+
+    const minimapRect = minimap.getBoundingClientRect();
+    const canvasRect = planCanvas.getBoundingClientRect();
+    const padding = 8;
+    const availWidth = minimapRect.width - padding * 2;
+    const availHeight = minimapRect.height - padding * 2;
+
+    const scale = Math.min(
+      availWidth / currentContentSize.width,
+      availHeight / currentContentSize.height
+    );
+
+    // Click position to world coordinates
+    const clickX = (e.clientX - minimapRect.left - padding) / scale;
+    const clickY = (e.clientY - minimapRect.top - padding) / scale;
+
+    // Center camera on clicked point
+    camera.x = clickX - (canvasRect.width / camera.zoom) / 2;
+    camera.y = clickY - (canvasRect.height / camera.zoom) / 2;
+
+    clampCameraToBounds();
+    updateTransform(true);
+  };
+
+  // Attach event listeners
+  planCanvas.addEventListener('wheel', handleWheel, { passive: false });
+  planCanvas.addEventListener('pointerdown', handlePointerDown);
+  planCanvas.addEventListener('pointermove', handlePointerMove);
+  planCanvas.addEventListener('pointerup', handlePointerUp);
+  planCanvas.addEventListener('dblclick', handleDblClick);
+  planCanvas.addEventListener('contextmenu', handleContextMenu);
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+  minimap?.addEventListener('click', handleMinimapClick);
+
+  // Store cleanup function
+  planCanvas._viewportCleanup = () => {
+    planCanvas.removeEventListener('wheel', handleWheel);
+    planCanvas.removeEventListener('pointerdown', handlePointerDown);
+    planCanvas.removeEventListener('pointermove', handlePointerMove);
+    planCanvas.removeEventListener('pointerup', handlePointerUp);
+    planCanvas.removeEventListener('dblclick', handleDblClick);
+    planCanvas.removeEventListener('contextmenu', handleContextMenu);
+    window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keyup', handleKeyUp);
+    minimap?.removeEventListener('click', handleMinimapClick);
+  };
+}
+
+/**
+ * Cleanup viewport state
+ */
+function cleanupViewport() {
+  if (planCanvas?._viewportCleanup) {
+    planCanvas._viewportCleanup();
+    delete planCanvas._viewportCleanup;
+  }
+  camera = { x: 0, y: 0, zoom: 1 };
+  viewportState = {
+    isPanning: false,
+    isSpacePressed: false,
+    startX: 0,
+    startY: 0,
+    startCameraX: 0,
+    startCameraY: 0,
+    pointerId: null
+  };
+  currentContentSize = { width: 0, height: 0 };
+  currentNodePositions = {};
+
+  // Hide UI
+  document.querySelector('.canvas-toolbar')?.classList.remove('visible');
+  document.querySelector('.viewport-minimap')?.classList.remove('visible');
+
+  // Reset cursor
+  planCanvas?.classList.remove('panning');
 }
 
 /**
@@ -245,9 +689,19 @@ function renderFromTopology(topology, metricsMap) {
   
   const layout = calculateTreeLayout(root, graph);
   renderTreeWithSVG(layout, graph);
-  
+
   planDropZone.style.display = 'none';
   planContainer.style.display = 'block';
+
+  // Initialize viewport and fit content to view
+  setupViewport();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => fitToView(false));
+  });
+
+  // Show UI elements
+  document.querySelector('.canvas-toolbar')?.classList.add('visible');
+  document.querySelector('.viewport-minimap')?.classList.add('visible');
 }
 
 /**
@@ -550,24 +1004,74 @@ function getNodeRowCount(node) {
  */
 function formatRowCount(value) {
   if (!value) return null;
-  
+
   // Handle string values like "207.615K (207615)"
   let numStr = String(value);
-  
+
   // If it already has K/M suffix, extract just the short form
   const match = numStr.match(/^([\d.]+[KMB]?)/i);
   if (match) {
     return match[1];
   }
-  
+
   // Parse as number and format
   const num = parseFloat(numStr.replace(/[,\s]/g, ''));
   if (isNaN(num)) return value;
-  
+
   if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
   return String(num);
+}
+
+/**
+ * Get raw numeric row count from a node
+ */
+function getNodeRowCountNumeric(node) {
+  if (!node || !node.metrics || !node.metrics.instances) return 0;
+
+  for (const inst of node.metrics.instances) {
+    const common = inst.metrics?.CommonMetrics;
+    if (common && common.PullRowNum) {
+      // Parse the raw value - handle "207.615K (207615)" format
+      const rawValue = String(common.PullRowNum);
+      // Try to extract number from parentheses first
+      const parenMatch = rawValue.match(/\((\d+)\)/);
+      if (parenMatch) return parseInt(parenMatch[1], 10);
+
+      // Otherwise parse the value directly
+      const num = parseFloat(rawValue.replace(/[,\s]/g, ''));
+      if (!isNaN(num)) {
+        // Handle K/M/B suffixes
+        if (rawValue.toUpperCase().includes('B')) return num * 1000000000;
+        if (rawValue.toUpperCase().includes('M')) return num * 1000000;
+        if (rawValue.toUpperCase().includes('K')) return num * 1000;
+        return num;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Calculate edge stroke width based on row count
+ * Uses logarithmic scale: more rows = thicker edge
+ * Range: 1.5px (minimum) to 8px (maximum)
+ */
+function calculateEdgeWidth(rowCount) {
+  const MIN_WIDTH = 1.5;
+  const MAX_WIDTH = 8;
+
+  if (!rowCount || rowCount <= 0) return MIN_WIDTH;
+
+  // Use log10 scale: 1 row = 0, 10 rows = 1, 100 = 2, 1K = 3, 10K = 4, 100K = 5, 1M = 6, 10M = 7
+  const logValue = Math.log10(Math.max(1, rowCount));
+
+  // Map log scale (0-7) to width range
+  // 0 (1 row) -> MIN_WIDTH
+  // 7 (10M rows) -> MAX_WIDTH
+  const normalized = Math.min(logValue / 7, 1);
+  return MIN_WIDTH + (MAX_WIDTH - MIN_WIDTH) * normalized;
 }
 
 /**
@@ -721,7 +1225,7 @@ function renderTreeWithSVG(layout, graph) {
   }
   collectEdges(root);
   
-  // Render SVG edges with row count labels
+  // Render SVG edges with row count labels and weighted widths
   let edgeSvg = '';
   for (const edge of edges) {
     const fromPos = positions[edge.from];
@@ -732,40 +1236,53 @@ function renderTreeWithSVG(layout, graph) {
       const x2 = toPos.x + NODE_WIDTH / 2;
       const y2 = toPos.y;
       const midY = (y1 + y2) / 2;
-      
-      // Draw the edge path
-      edgeSvg += `<path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="#30363d" stroke-width="1.5"/>`;
-      
+
       // Get row count from the child node (source of data flow)
       const childNode = graph[edge.to];
-      const rowCount = getNodeRowCount(childNode) || '0';
-      
-      if (rowCount) {
+      const rowCountNumeric = getNodeRowCountNumeric(childNode);
+      const rowCountFormatted = getNodeRowCount(childNode) || '0';
+
+      // Calculate edge width based on row count (logarithmic scale)
+      const strokeWidth = calculateEdgeWidth(rowCountNumeric);
+
+      // Draw the edge path with weighted width
+      edgeSvg += `<path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="#30363d" stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round"/>`;
+
+      if (rowCountFormatted) {
         // Calculate label position (on the bezier curve, slightly above midpoint)
         const labelX = (x1 + x2) / 2;
         const labelY = midY - 5;
-        const labelWidth = rowCount.length * 7 + 12;
-        
+        const labelWidth = rowCountFormatted.length * 7 + 12;
+
         edgeSvg += `
           <rect x="${labelX - labelWidth/2}" y="${labelY - 10}" width="${labelWidth}" height="18" rx="4" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-          <text x="${labelX}" y="${labelY + 2}" text-anchor="middle" fill="#a5d6ff" font-size="10" font-family="JetBrains Mono, monospace">${rowCount}</text>
+          <text x="${labelX}" y="${labelY + 2}" text-anchor="middle" fill="#a5d6ff" font-size="10" font-family="JetBrains Mono, monospace">${rowCountFormatted}</text>
         `;
       }
     }
   }
   
-  // Render nodes
+  // Render nodes and store positions for minimap
   let nodesHtml = '';
+  currentNodePositions = {};
+
   for (const [id, pos] of Object.entries(positions)) {
     const node = graph[id];
     if (!node) continue;
-    
+
     const nodeClass = getNodeClass(node.name);
     const displayName = node.name.length > 18 ? node.name.substring(0, 16) + '...' : node.name;
     const hasMetrics = hasExpandableMetrics(node);
     const metricsDropdown = buildMetricsDropdown(node);
     const totalTime = node.metrics ? getNodeTotalTime(node.metrics) : null;
-    
+
+    // Store position for minimap
+    currentNodePositions[id] = {
+      x: pos.x + padding,
+      y: pos.y + padding,
+      nodeClass: nodeClass || 'other'
+    };
+
     const nodeStyle = `
       position:absolute;
       left:${pos.x + padding}px;
@@ -779,20 +1296,20 @@ function renderTreeWithSVG(layout, graph) {
       z-index:1;
       ${hasMetrics ? 'cursor:pointer;' : ''}
     `;
-    
-    const borderColor = nodeClass === 'scan' ? '#d29922' : 
-                        nodeClass === 'join' ? '#f85149' : 
-                        nodeClass === 'exchange' ? '#58a6ff' : 
-                        nodeClass === 'aggregate' ? '#a371f7' : 
+
+    const borderColor = nodeClass === 'scan' ? '#d29922' :
+                        nodeClass === 'join' ? '#f85149' :
+                        nodeClass === 'exchange' ? '#58a6ff' :
+                        nodeClass === 'aggregate' ? '#a371f7' :
                         nodeClass === 'union' ? '#3fb950' : '#8b949e';
-    
+
     // Build time display - show in green if we have it
-    const timeDisplay = totalTime 
+    const timeDisplay = totalTime
       ? `<div style="font-size:10px;color:#3fb950;margin-top:2px;font-weight:500;">⏱ ${totalTime}</div>`
       : '';
-    
+
     nodesHtml += `
-      <div id="node-${id}" class="plan-node ${nodeClass} ${hasMetrics ? 'has-metrics' : ''}" 
+      <div id="node-${id}" class="plan-node ${nodeClass} ${hasMetrics ? 'has-metrics' : ''}"
            style="${nodeStyle}border-left:3px solid ${borderColor};"
            ${hasMetrics ? `onclick="toggleNodeMetrics('${id}', event)"` : ''}>
         <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
@@ -805,14 +1322,20 @@ function renderTreeWithSVG(layout, graph) {
       </div>
     `;
   }
-  
+
+  // Store content size for viewport calculations
+  currentContentSize = { width: width + padding * 2, height: height + padding * 2 };
+
+  // Wrap content in zoom-container for CSS transform-based pan/zoom
   planCanvas.innerHTML = `
-    <div style="position:relative;width:${width + padding * 2}px;height:${height + padding * 2}px;">
-      <svg style="position:absolute;top:0;left:0;" width="${width + padding * 2}" height="${height + padding * 2}">
-        <g transform="translate(${padding}, ${padding})">${edgeSvg}</g>
-      </svg>
-      <div style="position:absolute;top:0;left:0;width:${width + padding * 2}px;height:${height + padding * 2}px;">
-        ${nodesHtml}
+    <div class="zoom-container">
+      <div style="position:relative;width:${width + padding * 2}px;height:${height + padding * 2}px;">
+        <svg style="position:absolute;top:0;left:0;" width="${width + padding * 2}" height="${height + padding * 2}">
+          <g transform="translate(${padding}, ${padding})">${edgeSvg}</g>
+        </svg>
+        <div style="position:absolute;top:0;left:0;width:${width + padding * 2}px;height:${height + padding * 2}px;">
+          ${nodesHtml}
+        </div>
       </div>
     </div>
   `;

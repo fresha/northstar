@@ -3,11 +3,11 @@
  * Handles:
  * - Central query storage
  * - URL hash encoding/decoding for sharing
- * - localStorage persistence
  * - State change notifications to all tabs
+ *
+ * Note: No localStorage persistence - queries only live in URL
  */
 
-const STORAGE_KEY = 'northstar_query';
 const URL_HASH_PREFIX = 'q=';
 
 // Current query JSON
@@ -17,22 +17,14 @@ let currentQuery = null;
 const listeners = [];
 
 /**
- * Initialize query state from URL or localStorage
+ * Initialize query state from URL only
+ * localStorage is NOT used for auto-loading (only for URL sync)
  */
 export function initQueryState() {
-  // Priority 1: Check URL hash
+  // ONLY check URL hash - no localStorage auto-loading
   const hashQuery = loadFromHash();
   if (hashQuery) {
     currentQuery = hashQuery;
-    saveToLocalStorage();
-    notifyListeners();
-    return true;
-  }
-
-  // Priority 2: Check localStorage
-  const storedQuery = loadFromLocalStorage();
-  if (storedQuery) {
-    currentQuery = storedQuery;
     notifyListeners();
     return true;
   }
@@ -53,10 +45,7 @@ export function getQuery() {
 export function setQuery(queryJson) {
   currentQuery = queryJson;
 
-  // Persist to localStorage
-  saveToLocalStorage();
-
-  // Update URL hash
+  // Update URL hash (no localStorage)
   updateHash();
 
   // Notify all listeners
@@ -68,7 +57,6 @@ export function setQuery(queryJson) {
  */
 export function clearQuery() {
   currentQuery = null;
-  localStorage.removeItem(STORAGE_KEY);
   clearHash();
   notifyListeners();
 }
@@ -102,38 +90,6 @@ function notifyListeners() {
       console.error('Error in query state listener:', error);
     }
   });
-}
-
-/**
- * Save query to localStorage
- */
-function saveToLocalStorage() {
-  if (!currentQuery) {
-    localStorage.removeItem(STORAGE_KEY);
-    return;
-  }
-
-  try {
-    const jsonString = JSON.stringify(currentQuery);
-    localStorage.setItem(STORAGE_KEY, jsonString);
-  } catch (error) {
-    console.error('Failed to save to localStorage:', error);
-  }
-}
-
-/**
- * Load query from localStorage
- */
-function loadFromLocalStorage() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Failed to load from localStorage:', error);
-  }
-  return null;
 }
 
 /**

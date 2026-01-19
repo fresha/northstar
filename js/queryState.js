@@ -90,26 +90,23 @@ function notifyListeners() {
 }
 
 /**
- * Encode JSON to URL-safe base64
+ * Encode JSON with LZ-String compression (accessed via window global)
  */
 function encodeQuery(json) {
   const jsonString = JSON.stringify(json);
-  const base64 = btoa(jsonString);
-  // Make URL-safe
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  // Access LZString from window global (loaded via script tag)
+  return window.LZString.compressToEncodedURIComponent(jsonString);
 }
 
 /**
- * Decode URL-safe base64 to JSON
+ * Decode LZ-String compressed data
  */
 function decodeQuery(encoded) {
-  // Restore standard base64
-  let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-  // Add padding
-  while (base64.length % 4) {
-    base64 += '=';
+  // Access LZString from window global
+  const jsonString = window.LZString.decompressFromEncodedURIComponent(encoded);
+  if (!jsonString) {
+    throw new Error('Failed to decompress data');
   }
-  const jsonString = atob(base64);
   return JSON.parse(jsonString);
 }
 

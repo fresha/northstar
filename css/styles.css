@@ -581,6 +581,13 @@ td.rows {
   border-bottom-color: var(--accent);
 }
 
+/* Separator before Query Comparison tab (last tab uses different workflow) */
+.tab-btn:last-child {
+  margin-left: 1rem;
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--border);
+}
+
 .tab-panel {
   display: none;
 }

@@ -222,6 +222,9 @@ globalFileInput.addEventListener('change', (e) => {
 // Set up global share button
 globalShareBtn.addEventListener('click', () => {
   const url = getShareableUrl();
+  console.log('Share URL:', url);
+  console.log('URL length:', url.length);
+
   navigator.clipboard.writeText(url).then(() => {
     // Visual feedback
     const originalText = globalShareBtn.textContent;

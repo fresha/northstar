@@ -45,9 +45,6 @@ export function getQuery() {
 export function setQuery(queryJson) {
   currentQuery = queryJson;
 
-  // Update URL hash (no localStorage)
-  updateHash();
-
   // Notify all listeners
   notifyListeners();
 }

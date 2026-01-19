@@ -1308,6 +1308,18 @@ function renderTreeWithSVG(layout, graph) {
       ? `<div style="font-size:10px;color:#3fb950;margin-top:2px;font-weight:500;">⏱ ${totalTime}</div>`
       : '';
 
+    // Build table name display for scan operators
+    let tableDisplay = '';
+    if (isScanOperator(node.name) && node.metrics) {
+      const scanMetrics = getScanMetrics(node.metrics);
+      if (scanMetrics && scanMetrics.table && scanMetrics.table !== 'N/A') {
+        const tableName = scanMetrics.table.length > 20
+          ? scanMetrics.table.substring(0, 18) + '...'
+          : scanMetrics.table;
+        tableDisplay = `<div style="font-size:9px;color:#d29922;margin-top:2px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${scanMetrics.table}">📋 ${tableName}</div>`;
+      }
+    }
+
     nodesHtml += `
       <div id="node-${id}" class="plan-node ${nodeClass} ${hasMetrics ? 'has-metrics' : ''}"
            style="${nodeStyle}border-left:3px solid ${borderColor};"
@@ -1318,6 +1330,7 @@ function renderTreeWithSVG(layout, graph) {
         </div>
         <div style="font-size:10px;color:#8b949e;margin-top:2px;">id=${node.planNodeId}</div>
         ${timeDisplay}
+        ${tableDisplay}
         ${metricsDropdown}
       </div>
     `;

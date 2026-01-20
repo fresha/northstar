@@ -143,6 +143,25 @@ export function setupPlanDropZone() {
   document.getElementById('viewportFit')?.addEventListener('click', () => fitToView(true));
 }
 
+/**
+ * Refresh plan view when tab becomes visible
+ * Called when switching to the Plan tab to fix layout calculated while hidden
+ */
+export function refreshPlanView() {
+  if (!planContainer || planContainer.style.display === 'none') return;
+
+  // Force minimap to re-render nodes (clear hash to bypass cache)
+  const minimapNodes = document.querySelector('.minimap-nodes');
+  if (minimapNodes) {
+    minimapNodes.dataset.hash = '';
+  }
+
+  // Re-fit to view now that dimensions are correct
+  requestAnimationFrame(() => {
+    fitToView(false);
+  });
+}
+
 // ========================================
 // Viewport Functions
 // ========================================
@@ -308,7 +327,7 @@ function updateMinimap() {
     let nodesHtml = '';
     for (const [id, pos] of Object.entries(currentNodePositions)) {
       const nodeClass = pos.nodeClass || 'other';
-      nodesHtml += `<div class="minimap-node ${nodeClass}" style="left:${pos.x * scale}px;top:${pos.y * scale}px;"></div>`;
+      nodesHtml += `<div class="minimap-node ${nodeClass}" style="left:${(pos.x * scale) + padding}px;top:${(pos.y * scale) + padding}px;"></div>`;
     }
     minimapNodes.innerHTML = nodesHtml;
     minimapNodes.dataset.hash = nodeHash;

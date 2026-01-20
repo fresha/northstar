@@ -6,7 +6,7 @@
 import { processQueryProfile } from './scanParser.js';
 import { renderDashboard } from './scanRender.js';
 import { initCompare } from './compare.js';
-import { setupPlanDropZone } from './visualizer.js';
+import { setupPlanDropZone, refreshPlanView } from './visualizer.js';
 import { processJoinProfile } from './joinParser.js';
 import { renderJoinDashboard } from './joinRender.js';
 import { trackEvent } from './analytics.js';
@@ -120,6 +120,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     const tabId = btn.dataset.tab;
     document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
     document.getElementById(`tab-${tabId}`).classList.add('active');
+
+    // Refresh plan view when switching to Plan tab (fixes layout calculated while hidden)
+    if (tabId === 'plan') {
+      refreshPlanView();
+    }
 
     // Track tab switch
     trackEvent(`tab-${tabId}`);

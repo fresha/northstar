@@ -9,9 +9,8 @@ import { parseNumericValue, sumMetric, formatNumber, formatBytes } from './utils
 // group: null means no group header (standalone column)
 export const METRICS_CONFIG = [
   // === General Info (no group) ===
-  { key: 'Table',                           label: 'Table',              source: 'unique', type: 'string',    group: null },
-  { key: 'fragmentId',                      label: 'Fragment',           source: 'meta',   type: 'number',    group: 'Location' },
-  { key: 'pipelineId',                      label: 'Pipeline',           source: 'meta',   type: 'number',    group: 'Location' },
+  { key: 'Table',                           label: 'Table',              source: 'unique', type: 'string',    group: null,       sticky: true },
+  { key: 'planNodeId',                      label: 'Node ID',            source: 'meta',   type: 'number',    group: null },
   { key: 'Predicates',                      label: 'Predicates',         source: 'unique', type: 'predicate', group: null },
   
   // === Timing Metrics (no group) ===
@@ -198,17 +197,49 @@ function renderTable(scans) {
   }
 
   // Build the group header row
+  // Count leading sticky columns
+  let stickyCount = 0;
+  while (stickyCount < METRICS_CONFIG.length && METRICS_CONFIG[stickyCount].sticky) {
+    stickyCount++;
+  }
+
+  let colOffset = 0;
   groupCells.forEach(cell => {
-    const th = document.createElement('th');
-    th.colSpan = cell.colspan;
-    if (cell.group === null) {
-      // No group - just a spacer
-      th.className = 'group-spacer';
-      th.textContent = '';
+    const cellStart = colOffset;
+    const cellEnd = colOffset + cell.colspan;
+    colOffset = cellEnd;
+
+    // Check if this cell contains sticky columns
+    if (cellStart < stickyCount) {
+      // Add separate cell(s) for sticky columns
+      const stickyInCell = Math.min(stickyCount, cellEnd) - cellStart;
+      for (let i = 0; i < stickyInCell; i++) {
+        const th = document.createElement('th');
+        th.className = 'group-spacer sticky-col';
+        th.textContent = '';
+        groupHeaderRow.appendChild(th);
+      }
+      // If there are non-sticky columns remaining in this cell
+      const remaining = cell.colspan - stickyInCell;
+      if (remaining > 0) {
+        const th = document.createElement('th');
+        th.colSpan = remaining;
+        th.className = cell.group === null ? 'group-spacer' : '';
+        th.textContent = cell.group || '';
+        groupHeaderRow.appendChild(th);
+      }
     } else {
-      th.textContent = cell.group;
+      // No sticky columns in this cell, render normally
+      const th = document.createElement('th');
+      th.colSpan = cell.colspan;
+      if (cell.group === null) {
+        th.className = 'group-spacer';
+        th.textContent = '';
+      } else {
+        th.textContent = cell.group;
+      }
+      groupHeaderRow.appendChild(th);
     }
-    groupHeaderRow.appendChild(th);
   });
 
   // =============================================
@@ -221,15 +252,20 @@ function renderTable(scans) {
     th.dataset.col = idx;
     th.dataset.key = col.key;
     th.textContent = col.label;
-    
+
     // Add group-start class for left border
     if (groupStartIndices.has(idx)) {
       th.classList.add('group-start');
     }
-    
+
+    // Add sticky class for fixed columns
+    if (col.sticky) {
+      th.classList.add('sticky-col');
+    }
+
     // Add click handler for sorting
     th.addEventListener('click', () => sortTable(th));
-    
+
     columnHeaderRow.appendChild(th);
   });
 
@@ -261,7 +297,12 @@ function renderTableBody(scans) {
       if (groupStartIndices.has(idx)) {
         classNames.push('group-start');
       }
-      
+
+      // Add sticky class for fixed columns
+      if (col.sticky) {
+        classNames.push('sticky-col');
+      }
+
       switch (col.type) {
         case 'string':
           classNames.push('table-name');

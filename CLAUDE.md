@@ -1,175 +1,29 @@
-# NorthStar - Claude Code Context
+# NorthStar
 
-## Project Overview
+A client-side web tool for analyzing StarRocks query profiles. Visualizes scan operators, join operators, and query execution plans from JSON profile exports.
 
-NorthStar is a client-side web application for analyzing StarRocks query profiles. It processes JSON query profile exports and provides visual analysis of scan operators, join operators, and query execution plans.
+## Tech Stack
 
-**Tech Stack:** Vanilla JavaScript (ES6 modules), HTML5, CSS3 - No build tools or frameworks.
+Vanilla JavaScript (ES6 modules), HTML5, CSS3. No build tools or frameworks.
 
 ## Architecture
 
-```
-northstar/
-├── index.html          # Single HTML file with all tab structures
-├── css/
-│   └── styles.css      # All styles (CSS variables, components, tabs)
-├── js/
-│   ├── main.js         # Entry point, tab navigation, file loading
-│   ├── utils.js        # Shared utilities (parseNumericValue, formatBytes, formatTime)
-│   ├── scanParser.js   # CONNECTOR_SCAN operator parsing
-│   ├── scanRender.js   # Scan Summary tab rendering
-│   ├── joinParser.js   # HASH_JOIN operator parsing, Topology parsing
-│   ├── joinRender.js   # Join Summary tab rendering
-│   ├── visualizer.js   # Query Plan tree visualization
-│   └── compare.js      # Query Comparison tab (baseline vs optimized)
-└── test_profiles/      # Sample StarRocks query profile JSON files
-```
+**Parser + Render separation**: Each feature has `*Parser.js` (extract/compute from JSON) and `*Render.js` (generate HTML, handle DOM). Data flows: JSON → Parser → Render.
 
-## Module Pattern
+Key files:
+- `js/utils.js` - Shared utilities (`parseNumericValue`, `formatBytes`, `formatTime`)
+- `js/visualizer.js` - Query Plan infinite canvas viewport
+- `js/compare.js` - Query comparison (baseline vs optimized)
 
-Each feature follows a **Parser + Render** separation:
+## Working on This Codebase
 
-| Module | Responsibility |
-|--------|----------------|
-| `*Parser.js` | Extract data from StarRocks JSON, compute metrics |
-| `*Render.js` | Generate HTML, handle DOM updates, sorting |
+- **No npm/build tools** - Keep everything vanilla JS
+- **Add to existing files** rather than creating new ones
+- **Use `parseNumericValue()`** for all metric parsing (converts StarRocks time strings like `"1.592ms"` to seconds)
+- **Test with** `test_profiles/` directory (real StarRocks query profile JSON files)
 
-**Data flow:**
-```
-JSON → Parser (extract/compute) → Render (display)
-```
+## Domain Knowledge
 
-## Key Data Structures
+StarRocks query profiles have nested structure: `Query.Execution.Fragment N.Pipeline (id=N).OPERATOR (plan_node_id=N)`. Operators have `CommonMetrics` (shared) and `UniqueMetrics` (operator-specific).
 
-### StarRocks Query Profile JSON
-```javascript
-{
-  "Query": {
-    "Summary": { "Query ID": "...", "Total": "1.5s", ... },
-    "Execution": {
-      "Topology": "JSON string of node relationships",
-      "QueryAllocatedMemoryUsage": "1.23 GB",
-      "Fragment 0": {
-        "Pipeline (id=1)": {
-          "CONNECTOR_SCAN (plan_node_id=0)": {
-            "CommonMetrics": { "PullRowNum": "1000", ... },
-            "UniqueMetrics": { "BytesRead": "1.5 MB", ... }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-### Traversal Pattern
-To iterate through operators:
-```javascript
-for (const fragKey of Object.keys(execution)) {
-  if (!fragKey.startsWith('Fragment ')) continue;
-  const fragment = execution[fragKey];
-
-  for (const pipeKey of Object.keys(fragment)) {
-    const pipeMatch = pipeKey.match(/Pipeline \(id=(\d+)\)/);
-    if (!pipeMatch) continue;
-    const pipeline = fragment[pipeKey];
-
-    for (const opKey of Object.keys(pipeline)) {
-      const opMatch = opKey.match(/(.+) \(plan_node_id=(-?\d+)\)/);
-      if (!opMatch) continue;
-      // Process operator...
-    }
-  }
-}
-```
-
-## Important Concepts
-
-### Time Values
-- StarRocks reports time as strings: `"1.592ms"`, `"26s134ms"`
-- `parseNumericValue()` in utils.js converts to **seconds**
-- `formatTime()` converts seconds back to human-readable
-
-### Metrics Sources
-- **CommonMetrics**: Shared across operator types (PullRowNum, PushRowNum, OperatorTotalTime)
-- **UniqueMetrics**: Operator-specific (BytesRead for scans, HashTableMemoryUsage for joins)
-
-### Join Operators
-- Each HASH_JOIN has plan_node_id shared by HASH_JOIN_PROBE and HASH_JOIN_BUILD
-- Time metrics in joins are **averages per instance**, not total query time
-- Topology JSON contains node relationships (children array)
-
-### Broadcast Joins
-- EXCHANGE_SINK PushRowNum = rows **before** broadcast
-- EXCHANGE_SOURCE PullRowNum = rows **after** broadcast (multiplied)
-
-### Query Plan Viewport (visualizer.js)
-The Query Plan tab has a Miro/Figma-style infinite canvas viewport:
-
-**Camera Model**: `camera = { x, y, zoom }` tracks world coordinates at viewport top-left
-- Transform formula: `translate(${-camera.x * camera.zoom}px, ${-camera.y * camera.zoom}px) scale(${camera.zoom})`
-- Transform origin is `0 0` (top-left)
-
-**User Interactions**:
-- Mouse wheel: Zoom to cursor (point under cursor stays fixed)
-- Space + left-drag OR right-drag: Pan
-- Double-click: Fit to view
-- Keyboard: `+/-` zoom, `0/F` fit, arrows pan
-
-**DOM Structure** (critical for clipping):
-```
-.plan-container (position: relative)
-├── .plan-canvas (overflow: hidden)
-│   └── .zoom-container (CSS transform applied here)
-├── .zoom-indicator (absolute, child of container NOT canvas)
-├── .canvas-toolbar (absolute, child of container NOT canvas)
-└── .viewport-minimap (absolute, child of container NOT canvas)
-```
-
-**State Preservation**: Camera position is saved before re-render (expand/collapse) and restored after.
-
-## Coding Guidelines
-
-### Do
-- Use ES6 modules with explicit imports/exports
-- Keep parser logic separate from rendering
-- Use `parseNumericValue()` for all metric parsing
-- Follow existing CSS variable naming (`--bg-primary`, `--accent`, etc.)
-- Add to existing files rather than creating new ones when possible
-
-### Don't
-- Don't use build tools or npm packages - keep it vanilla JS
-- Don't inline styles - use CSS classes
-- Don't create unnecessary wrapper functions
-- Don't add console.log statements (remove after debugging)
-
-### CSS Conventions
-- Use CSS variables from `:root` for colors
-- Grid for layouts, flexbox for alignment
-- Mobile responsiveness not required (desktop tool)
-
-### HTML Structure
-- Each tab is a `.tab-panel` with `id="tab-{name}"`
-- Each tab has its own drop zone and dashboard container
-- Tables use `thead` with group headers + column headers pattern
-
-## Testing
-
-Load files from `test_profiles/` directory to test changes. Files contain real StarRocks query profile exports.
-
-## Common Tasks
-
-### Adding a new metric to a table
-1. Add column config to `*_METRICS_CONFIG` array in `*Render.js`
-2. Extract value in `extract*Metrics()` function in `*Parser.js`
-
-### Adding a new comparison metric
-1. Add to `loadCompareFile()` data extraction in `compare.js`
-2. Add card definition in `renderComparison()`
-3. Use `generateCompareCardsHTML()` for computed values
-
-### Adding a new tab
-1. Add tab button in `index.html` nav
-2. Add `.tab-panel` section in `index.html`
-3. Create `*Parser.js` and `*Render.js` modules
-4. Wire up in `main.js`
+For traversal patterns, see `scanParser.js:12` (Fragment/Pipeline iteration) and `joinParser.js:11` (Topology parsing).

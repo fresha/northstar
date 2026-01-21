@@ -117,13 +117,6 @@ header {
   width: auto;
 }
 
-/* Theme-specific logos */
-.logo-light { display: none; }
-.logo-dark { display: block; }
-
-[data-theme="light"] .logo-light { display: block; }
-[data-theme="light"] .logo-dark { display: none; }
-
 .logo {
   font-size: 1.5rem;
   font-weight: 700;

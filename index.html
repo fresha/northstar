@@ -10,6 +10,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   
+  <!-- Theme initialization (prevents flash of wrong theme) -->
+  <script>
+    (function() {
+      const saved = localStorage.getItem('northstar-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+    })();
+  </script>
+
   <!-- Styles -->
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -24,9 +33,13 @@
       <h1>Query Analyzer for StarRocks</h1>
     </div>
     <div class="header-right">
-      <button class="btn-load-query" id="globalLoadBtn">📁 Load Query</button>
-      <button class="btn-share" id="globalShareBtn" style="display: none;">🔗 Share</button>
+      <button class="btn-load-query" id="globalLoadBtn">Load Query</button>
+      <button class="btn-share" id="globalShareBtn" style="display: none;">Share</button>
       <input type="file" id="globalFileInput" accept=".json" style="display: none;">
+      <button class="btn-theme-toggle" id="themeToggle" title="Toggle theme">
+        <span class="theme-icon-dark">☀️</span>
+        <span class="theme-icon-light">🌙</span>
+      </button>
     </div>
   </header>
 

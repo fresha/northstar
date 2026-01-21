@@ -1,19 +1,73 @@
 /* ========================================
-   CSS Variables - Our color palette
-   Using a dark theme with teal accents
+   CSS Variables - Nord Theme Palette
+   https://www.nordtheme.com/
    ======================================== */
+
+/* Nord color definitions */
 :root {
-  --bg-primary: #0d1117;      /* Main background - deep dark blue */
-  --bg-secondary: #161b22;    /* Cards/panels background */
-  --bg-tertiary: #21262d;     /* Hover states, borders */
-  --text-primary: #e6edf3;    /* Main text - off-white */
-  --text-secondary: #8b949e;  /* Muted text */
-  --accent: #00d4aa;          /* Teal accent - our brand color */
-  --accent-dim: #00d4aa33;    /* Accent with transparency */
-  --border: #30363d;          /* Subtle borders */
-  --success: #3fb950;         /* Green for good metrics */
-  --warning: #d29922;         /* Yellow/orange for warnings */
-  --danger: #f85149;          /* Red for issues */
+  /* Polar Night - dark backgrounds */
+  --nord0: #2e3440;
+  --nord1: #3b4252;
+  --nord2: #434c5e;
+  --nord3: #4c566a;
+  /* Snow Storm - light backgrounds / dark mode text */
+  --nord4: #d8dee9;
+  --nord5: #e5e9f0;
+  --nord6: #eceff4;
+  /* Frost - accent colors */
+  --nord7: #8fbcbb;
+  --nord8: #88c0d0;
+  --nord9: #81a1c1;
+  --nord10: #5e81ac;
+  /* Aurora - semantic colors */
+  --nord11: #bf616a;
+  --nord12: #d08770;
+  --nord13: #ebcb8b;
+  --nord14: #a3be8c;
+  --nord15: #b48ead;
+}
+
+/* Dark theme (default) */
+:root,
+[data-theme="dark"] {
+  --bg-primary: var(--nord0);
+  --bg-secondary: var(--nord1);
+  --bg-tertiary: var(--nord2);
+  --bg-overlay: rgba(46, 52, 64, 0.95);
+  --text-primary: var(--nord6);
+  --text-secondary: var(--nord4);
+  --accent: var(--nord8);
+  --accent-hover: var(--nord7);
+  --accent-dim: rgba(136, 192, 208, 0.2);
+  --border: var(--nord3);
+  --border-strong: var(--nord4);
+  --success: var(--nord14);
+  --warning: var(--nord13);
+  --danger: var(--nord11);
+  --info: var(--nord9);
+  --purple: var(--nord15);
+  --orange: var(--nord12);
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --bg-primary: var(--nord6);
+  --bg-secondary: var(--nord5);
+  --bg-tertiary: var(--nord4);
+  --bg-overlay: rgba(236, 239, 244, 0.95);
+  --text-primary: var(--nord0);
+  --text-secondary: var(--nord3);
+  --accent: var(--nord10);
+  --accent-hover: var(--nord9);
+  --accent-dim: rgba(94, 129, 172, 0.2);
+  --border: var(--nord4);
+  --border-strong: var(--nord3);
+  --success: var(--nord14);
+  --warning: var(--nord12);
+  --danger: var(--nord11);
+  --info: var(--nord9);
+  --purple: var(--nord15);
+  --orange: var(--nord12);
 }
 
 /* ========================================
@@ -105,6 +159,39 @@ header h1 {
 
 .btn-share:hover {
   opacity: 0.9;
+}
+
+/* Theme Toggle Button */
+.btn-theme-toggle {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Show sun icon in dark mode, moon icon in light mode */
+.theme-icon-light {
+  display: none;
+}
+
+[data-theme="light"] .theme-icon-dark {
+  display: none;
+}
+
+[data-theme="light"] .theme-icon-light {
+  display: inline;
 }
 
 /* ========================================
@@ -231,7 +318,7 @@ main {
 }
 
 .cards-section {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(22, 27, 34, 0.8) 100%);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.25rem 1.5rem 1.5rem;
@@ -323,16 +410,16 @@ main {
 }
 
 .card {
-  background: rgba(33, 38, 45, 0.6);
-  border: 1px solid rgba(48, 54, 61, 0.6);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   transition: all 0.2s ease;
+  opacity: 0.8;
 }
 
 .card:hover {
-  background: rgba(33, 38, 45, 0.9);
-  border-color: var(--border);
+  opacity: 1;
   transform: translateY(-1px);
 }
 
@@ -360,7 +447,7 @@ main {
 }
 
 .card-value.rows {
-  color: #a5d6ff;
+  color: var(--info);
 }
 
 .card-pct {
@@ -478,18 +565,18 @@ tr.group-header-row th.group-spacer {
   border-bottom: 1px solid var(--border);
 }
 
-/* Probe Side header - teal/cyan accent */
+/* Probe Side header - frost accent */
 tr.group-header-row th.probe-header {
-  background: linear-gradient(135deg, rgba(0, 212, 170, 0.15), rgba(0, 212, 170, 0.05));
-  color: #00d4aa;
-  border-bottom: 2px solid #00d4aa;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
 }
 
-/* Build Side header - orange/yellow accent */
+/* Build Side header - orange accent */
 tr.group-header-row th.build-header {
-  background: linear-gradient(135deg, rgba(210, 153, 34, 0.15), rgba(210, 153, 34, 0.05));
-  color: #d29922;
-  border-bottom: 2px solid #d29922;
+  background: rgba(208, 135, 112, 0.15);
+  color: var(--orange);
+  border-bottom: 2px solid var(--orange);
 }
 
 /* Add subtle left border to first column of each group */
@@ -560,7 +647,7 @@ td.time {
 }
 
 td.rows {
-  color: #a5d6ff;
+  color: var(--info);
 }
 
 /* ========================================
@@ -764,7 +851,7 @@ td.rows {
 }
 
 .compare-card {
-  background: rgba(33, 38, 45, 0.6);
+  background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem;
@@ -909,12 +996,12 @@ td.rows {
   right: 24px;
   display: none;
   gap: 4px;
-  background: rgba(22, 27, 34, 0.95);
+  background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 6px;
   backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   z-index: 300;
 }
 
@@ -944,7 +1031,7 @@ td.rows {
   position: absolute;
   top: 134px;  /* Below toolbar */
   right: 24px;
-  background: rgba(22, 27, 34, 0.95);
+  background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 10px;
@@ -967,7 +1054,7 @@ td.rows {
   left: 24px;
   width: 180px;
   height: 120px;
-  background: rgba(22, 27, 34, 0.95);
+  background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
@@ -1009,7 +1096,7 @@ td.rows {
 
 .minimap-node.scan { background: var(--warning); }
 .minimap-node.join { background: var(--danger); }
-.minimap-node.exchange { background: #58a6ff; }
+.minimap-node.exchange { background: var(--info); }
 .minimap-node.other { background: var(--text-secondary); }
 
 .plan-svg-container {
@@ -1033,10 +1120,66 @@ td.rows {
   position: relative;
 }
 
-/* Plan node base styling with transitions */
+/* Plan SVG edges */
+.plan-svg path {
+  stroke: var(--text-secondary);
+}
+
+/* Edge row count labels */
+.edge-label-bg {
+  fill: var(--bg-secondary);
+  stroke: var(--border);
+}
+
+.edge-label-text {
+  fill: var(--info);
+}
+
+/* Plan node base styling */
 .plan-node {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border) !important;
   transition: width 0.15s ease-out, box-shadow 0.2s ease-out, transform 0.15s ease-out;
 }
+
+/* Node type border colors */
+.plan-node.scan { border-left: 3px solid var(--warning) !important; }
+.plan-node.join { border-left: 3px solid var(--danger) !important; }
+.plan-node.exchange { border-left: 3px solid var(--info) !important; }
+.plan-node.aggregate { border-left: 3px solid var(--purple) !important; }
+.plan-node.union { border-left: 3px solid var(--success) !important; }
+.plan-node.other { border-left: 3px solid var(--text-secondary) !important; }
+
+/* Node content colors */
+.plan-node .node-name { color: var(--text-primary); }
+.plan-node .node-id { color: var(--text-secondary); }
+.plan-node .node-time { color: var(--success); }
+.plan-node .node-table { color: var(--warning); }
+.plan-node .expand-icon { color: var(--accent); }
+
+/* Metrics dropdown */
+.node-metrics-dropdown {
+  border-top: 1px solid var(--border);
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.metric-label { color: var(--text-secondary); font-size: 11px; }
+.metric-value { color: var(--text-primary); font-size: 11px; font-weight: 500; }
+.metric-value.time { color: var(--success); }
+.metric-value.bytes { color: var(--warning); }
+.metric-value.rows { color: var(--info); }
+.metric-value.memory { color: var(--warning); }
+.metric-value.network { color: var(--info); }
+.metric-value.type { color: var(--danger); }
+.metric-percent { color: var(--text-secondary); }
 
 .plan-node:hover {
   border-color: var(--accent) !important;
@@ -1200,7 +1343,7 @@ td.rows {
 }
 
 .raw-content .search-highlight {
-  background: rgba(210, 153, 34, 0.4);
+  background: rgba(235, 203, 139, 0.3);
   border-radius: 2px;
 }
 

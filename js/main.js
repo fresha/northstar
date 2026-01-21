@@ -13,6 +13,7 @@ import { trackEvent } from './analytics.js';
 import { initQueryState, getQuery, setQuery, addListener, hasQuery, getShareableUrl, getQuerySource } from './queryState.js';
 import { loadFromUrl, shareToDpaste, parseNorthStarUrl, extractGistId, extractPasteId } from './urlLoader.js';
 import { initRawJson, updateRawTab, clearRawTab } from './rawJson.js';
+import { initTheme } from './theme.js';
 
 // ========================================
 // DOM Elements - Scan Summary Tab
@@ -537,6 +538,9 @@ document.getElementById('joinReset').addEventListener('click', () => {
 // ========================================
 // Initialize
 // ========================================
+
+// Initialize theme (dark/light mode) - do this first to prevent flash
+initTheme();
 
 // Initialize comparison functionality (stays independent)
 initCompare();

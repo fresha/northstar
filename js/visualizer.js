@@ -1121,24 +1121,17 @@ function calculateEdgeWidth(rowCount) {
 function buildScanMetricsDropdown(node) {
   const m = getScanMetrics(node.metrics);
   if (!m) return '';
-  
-  const rowStyle = 'display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #21262d;gap:12px;';
-  const labelStyle = 'color:#8b949e;font-size:11px;white-space:nowrap;flex-shrink:0;';
-  const valueStyle = 'color:#e6edf3;font-size:11px;font-weight:500;text-align:right;word-break:break-all;';
-  const timeStyle = valueStyle + 'color:#3fb950;';
-  const bytesStyle = valueStyle + 'color:#d29922;';
-  const rowsStyle = valueStyle + 'color:#a5d6ff;';
-  
+
   return `
-    <div id="metrics-${node.id}" class="node-metrics-dropdown" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
-      <div style="${rowStyle}"><span style="${labelStyle}">Table</span><span style="${valueStyle}">${m.table}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Operator Time</span><span style="${timeStyle}">${m.operatorTotalTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Scan Time</span><span style="${timeStyle}">${m.scanTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Bytes Read</span><span style="${bytesStyle}">${m.bytesRead}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Pull Rows</span><span style="${rowsStyle}">${m.pullRowNum}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Rows Read</span><span style="${rowsStyle}">${m.rowsRead}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Raw Rows Read</span><span style="${rowsStyle}">${m.rawRowsRead}</span></div>
-      <div style="${rowStyle};border-bottom:none;"><span style="${labelStyle}">Tablets</span><span style="${valueStyle}">${m.tabletCount}</span></div>
+    <div id="metrics-${node.id}" class="node-metrics-dropdown" style="display:none;margin-top:8px;padding-top:8px;">
+      <div class="metric-row"><span class="metric-label">Table</span><span class="metric-value">${m.table}</span></div>
+      <div class="metric-row"><span class="metric-label">Operator Time</span><span class="metric-value time">${m.operatorTotalTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Scan Time</span><span class="metric-value time">${m.scanTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Bytes Read</span><span class="metric-value bytes">${m.bytesRead}</span></div>
+      <div class="metric-row"><span class="metric-label">Pull Rows</span><span class="metric-value rows">${m.pullRowNum}</span></div>
+      <div class="metric-row"><span class="metric-label">Rows Read</span><span class="metric-value rows">${m.rowsRead}</span></div>
+      <div class="metric-row"><span class="metric-label">Raw Rows Read</span><span class="metric-value rows">${m.rawRowsRead}</span></div>
+      <div class="metric-row" style="border-bottom:none;"><span class="metric-label">Tablets</span><span class="metric-value">${m.tabletCount}</span></div>
     </div>
   `;
 }
@@ -1149,28 +1142,20 @@ function buildScanMetricsDropdown(node) {
 function buildJoinMetricsDropdown(node) {
   const m = getJoinMetrics(node.metrics);
   if (!m) return '';
-  
-  const rowStyle = 'display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #21262d;gap:12px;';
-  const labelStyle = 'color:#8b949e;font-size:11px;white-space:nowrap;flex-shrink:0;';
-  const valueStyle = 'color:#e6edf3;font-size:11px;font-weight:500;text-align:right;word-break:break-all;';
-  const timeStyle = valueStyle + 'color:#3fb950;';
-  const memoryStyle = valueStyle + 'color:#d29922;';
-  const rowsStyle = valueStyle + 'color:#a5d6ff;';
-  const typeStyle = valueStyle + 'color:#f85149;';
-  
+
   return `
-    <div id="metrics-${node.id}" class="node-metrics-dropdown" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
-      <div style="${rowStyle}"><span style="${labelStyle}">Join Type</span><span style="${typeStyle}">${m.joinType}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Distribution</span><span style="${valueStyle}">${m.distributionMode}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Predicates</span><span style="${valueStyle}">${m.joinPredicates}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Total Join Time</span><span style="${timeStyle}">${m.totalJoinTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Build Time</span><span style="${timeStyle}">${m.buildTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Probe Time</span><span style="${timeStyle}">${m.probeTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Build Hash Table</span><span style="${timeStyle}">${m.buildHashTableTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Search Hash Table</span><span style="${timeStyle}">${m.searchHashTableTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Hash Table Memory</span><span style="${memoryStyle}">${m.hashTableMemory}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Build Rows</span><span style="${rowsStyle}">${m.buildRows}</span></div>
-      <div style="${rowStyle};border-bottom:none;"><span style="${labelStyle}">Output Rows</span><span style="${rowsStyle}">${m.pullRowNum}</span></div>
+    <div id="metrics-${node.id}" class="node-metrics-dropdown" style="display:none;margin-top:8px;padding-top:8px;">
+      <div class="metric-row"><span class="metric-label">Join Type</span><span class="metric-value type">${m.joinType}</span></div>
+      <div class="metric-row"><span class="metric-label">Distribution</span><span class="metric-value">${m.distributionMode}</span></div>
+      <div class="metric-row"><span class="metric-label">Predicates</span><span class="metric-value">${m.joinPredicates}</span></div>
+      <div class="metric-row"><span class="metric-label">Total Join Time</span><span class="metric-value time">${m.totalJoinTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Build Time</span><span class="metric-value time">${m.buildTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Probe Time</span><span class="metric-value time">${m.probeTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Build Hash Table</span><span class="metric-value time">${m.buildHashTableTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Search Hash Table</span><span class="metric-value time">${m.searchHashTableTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Hash Table Memory</span><span class="metric-value memory">${m.hashTableMemory}</span></div>
+      <div class="metric-row"><span class="metric-label">Build Rows</span><span class="metric-value rows">${m.buildRows}</span></div>
+      <div class="metric-row" style="border-bottom:none;"><span class="metric-label">Output Rows</span><span class="metric-value rows">${m.pullRowNum}</span></div>
     </div>
   `;
 }
@@ -1181,27 +1166,19 @@ function buildJoinMetricsDropdown(node) {
 function buildExchangeMetricsDropdown(node) {
   const m = getExchangeMetrics(node.metrics);
   if (!m) return '';
-  
-  const rowStyle = 'display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #21262d;gap:12px;';
-  const labelStyle = 'color:#8b949e;font-size:11px;white-space:nowrap;flex-shrink:0;';
-  const valueStyle = 'color:#e6edf3;font-size:11px;font-weight:500;text-align:right;word-break:break-all;';
-  const timeStyle = valueStyle + 'color:#3fb950;';
-  const networkStyle = valueStyle + 'color:#58a6ff;';
-  const bytesStyle = valueStyle + 'color:#d29922;';
-  const rowsStyle = valueStyle + 'color:#a5d6ff;';
-  
+
   return `
-    <div id="metrics-${node.id}" class="node-metrics-dropdown" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
-      <div style="${rowStyle}"><span style="${labelStyle}">Partition Type</span><span style="${valueStyle}">${m.partType}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Total Time</span><span style="${timeStyle}">${m.totalTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">CPU Time</span><span style="${timeStyle}">${m.cpuTime} <span style="color:#8b949e;">(${m.cpuPercent}%)</span></span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Network Time</span><span style="${networkStyle}">${m.networkTime} <span style="color:#8b949e;">(${m.networkPercent}%)</span></span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Source Time</span><span style="${timeStyle}">${m.sourceTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Sink Time</span><span style="${timeStyle}">${m.sinkTime}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Bytes Sent</span><span style="${bytesStyle}">${m.bytesSent}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Bytes Received</span><span style="${bytesStyle}">${m.bytesReceived}</span></div>
-      <div style="${rowStyle}"><span style="${labelStyle}">Bandwidth</span><span style="${bytesStyle}">${m.networkBandwidth}</span></div>
-      <div style="${rowStyle};border-bottom:none;"><span style="${labelStyle}">Rows</span><span style="${rowsStyle}">${m.pullRowNum}</span></div>
+    <div id="metrics-${node.id}" class="node-metrics-dropdown" style="display:none;margin-top:8px;padding-top:8px;">
+      <div class="metric-row"><span class="metric-label">Partition Type</span><span class="metric-value">${m.partType}</span></div>
+      <div class="metric-row"><span class="metric-label">Total Time</span><span class="metric-value time">${m.totalTime}</span></div>
+      <div class="metric-row"><span class="metric-label">CPU Time</span><span class="metric-value time">${m.cpuTime} <span class="metric-percent">(${m.cpuPercent}%)</span></span></div>
+      <div class="metric-row"><span class="metric-label">Network Time</span><span class="metric-value network">${m.networkTime} <span class="metric-percent">(${m.networkPercent}%)</span></span></div>
+      <div class="metric-row"><span class="metric-label">Source Time</span><span class="metric-value time">${m.sourceTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Sink Time</span><span class="metric-value time">${m.sinkTime}</span></div>
+      <div class="metric-row"><span class="metric-label">Bytes Sent</span><span class="metric-value bytes">${m.bytesSent}</span></div>
+      <div class="metric-row"><span class="metric-label">Bytes Received</span><span class="metric-value bytes">${m.bytesReceived}</span></div>
+      <div class="metric-row"><span class="metric-label">Bandwidth</span><span class="metric-value bytes">${m.networkBandwidth}</span></div>
+      <div class="metric-row" style="border-bottom:none;"><span class="metric-label">Rows</span><span class="metric-value rows">${m.pullRowNum}</span></div>
     </div>
   `;
 }
@@ -1243,7 +1220,7 @@ function renderTreeWithSVG(layout, graph) {
   const padding = 40;
   
   if (!root || Object.keys(positions).length === 0) {
-    planCanvas.innerHTML = '<div style="padding:2rem;color:#f85149;">No operators found</div>';
+    planCanvas.innerHTML = '<div style="padding:2rem;color:var(--danger);">No operators found</div>';
     return;
   }
   
@@ -1286,8 +1263,8 @@ function renderTreeWithSVG(layout, graph) {
       // Calculate edge width based on row count (logarithmic scale)
       const strokeWidth = calculateEdgeWidth(rowCountNumeric);
 
-      // Draw the edge path with weighted width
-      edgeSvg += `<path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="#30363d" stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round"/>`;
+      // Draw the edge path with weighted width - use CSS variable for stroke
+      edgeSvg += `<path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="var(--text-secondary)" stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round"/>`;
 
       if (rowCountFormatted) {
         // Calculate label position (on the bezier curve, slightly above midpoint)
@@ -1296,8 +1273,8 @@ function renderTreeWithSVG(layout, graph) {
         const labelWidth = rowCountFormatted.length * 7 + 12;
 
         edgeSvg += `
-          <rect x="${labelX - labelWidth/2}" y="${labelY - 10}" width="${labelWidth}" height="18" rx="4" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-          <text x="${labelX}" y="${labelY + 2}" text-anchor="middle" fill="#a5d6ff" font-size="10" font-family="JetBrains Mono, monospace">${rowCountFormatted}</text>
+          <rect x="${labelX - labelWidth/2}" y="${labelY - 10}" width="${labelWidth}" height="18" rx="4" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="1"/>
+          <text x="${labelX}" y="${labelY + 2}" text-anchor="middle" fill="var(--info)" font-size="10" font-family="JetBrains Mono, monospace">${rowCountFormatted}</text>
         `;
       }
     }
@@ -1329,24 +1306,15 @@ function renderTreeWithSVG(layout, graph) {
       left:${pos.x + padding}px;
       top:${pos.y + padding}px;
       width:160px;
-      background:#161b22;
-      border:1px solid #30363d;
       border-radius:8px;
       padding:8px 10px;
       text-align:center;
       z-index:1;
-      ${hasMetrics ? 'cursor:pointer;' : ''}
     `;
 
-    const borderColor = nodeClass === 'scan' ? '#d29922' :
-                        nodeClass === 'join' ? '#f85149' :
-                        nodeClass === 'exchange' ? '#58a6ff' :
-                        nodeClass === 'aggregate' ? '#a371f7' :
-                        nodeClass === 'union' ? '#3fb950' : '#8b949e';
-
-    // Build time display - show in green if we have it
+    // Build time display
     const timeDisplay = totalTime
-      ? `<div style="font-size:10px;color:#3fb950;margin-top:2px;font-weight:500;">⏱ ${totalTime}</div>`
+      ? `<div class="node-time" style="font-size:10px;margin-top:2px;font-weight:500;">⏱ ${totalTime}</div>`
       : '';
 
     // Build table name display for scan operators
@@ -1357,19 +1325,19 @@ function renderTreeWithSVG(layout, graph) {
         const tableName = scanMetrics.table.length > 20
           ? scanMetrics.table.substring(0, 18) + '...'
           : scanMetrics.table;
-        tableDisplay = `<div style="font-size:9px;color:#d29922;margin-top:2px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${scanMetrics.table}">📋 ${tableName}</div>`;
+        tableDisplay = `<div class="node-table" style="font-size:9px;margin-top:2px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${scanMetrics.table}">📋 ${tableName}</div>`;
       }
     }
 
     nodesHtml += `
       <div id="node-${id}" class="plan-node ${nodeClass} ${hasMetrics ? 'has-metrics' : ''}"
-           style="${nodeStyle}border-left:3px solid ${borderColor};"
+           style="${nodeStyle}"
            ${hasMetrics ? `onclick="toggleNodeMetrics('${id}', event)"` : ''}>
         <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
-          <span style="font-size:11px;font-weight:600;color:#e6edf3;">${displayName}</span>
-          ${hasMetrics ? `<span id="icon-${id}" class="expand-icon" style="font-size:8px;color:#00d4aa;">▼</span>` : ''}
+          <span class="node-name" style="font-size:11px;font-weight:600;">${displayName}</span>
+          ${hasMetrics ? `<span id="icon-${id}" class="expand-icon" style="font-size:8px;">▼</span>` : ''}
         </div>
-        <div style="font-size:10px;color:#8b949e;margin-top:2px;">id=${node.planNodeId}</div>
+        <div class="node-id" style="font-size:10px;margin-top:2px;">id=${node.planNodeId}</div>
         ${timeDisplay}
         ${tableDisplay}
         ${metricsDropdown}
@@ -1384,7 +1352,7 @@ function renderTreeWithSVG(layout, graph) {
   planCanvas.innerHTML = `
     <div class="zoom-container">
       <div style="position:relative;width:${width + padding * 2}px;height:${height + padding * 2}px;">
-        <svg style="position:absolute;top:0;left:0;" width="${width + padding * 2}" height="${height + padding * 2}">
+        <svg class="plan-svg" style="position:absolute;top:0;left:0;" width="${width + padding * 2}" height="${height + padding * 2}">
           <g transform="translate(${padding}, ${padding})">${edgeSvg}</g>
         </svg>
         <div style="position:absolute;top:0;left:0;width:${width + padding * 2}px;height:${height + padding * 2}px;">

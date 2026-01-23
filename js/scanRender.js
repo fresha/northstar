@@ -3,6 +3,7 @@
  */
 
 import { parseNumericValue, sumMetric, formatNumber, formatBytes } from './utils.js';
+import { setupNodeLinkHandlers } from './nodePopup.js';
 
 // Define which metrics we want to display (from user requirements)
 // Columns are grouped - columns with the same 'group' value will share a header
@@ -344,98 +345,7 @@ function renderTableBody(scans) {
   }).join('');
 
   // Add click handlers for node links
-  setupNodeLinkHandlers(tbody);
-}
-
-/**
- * Setup click handlers for node ID links
- */
-function setupNodeLinkHandlers(tbody) {
-  tbody.querySelectorAll('.node-link').forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const nodeId = parseInt(link.dataset.nodeId);
-      showNodePopup(e, nodeId);
-    });
-  });
-}
-
-/**
- * Show popup menu for node navigation
- */
-function showNodePopup(event, nodeId) {
-  // Remove any existing popup
-  hideNodePopup();
-
-  const popup = document.createElement('div');
-  popup.className = 'node-popup';
-  popup.innerHTML = `
-    <div class="node-popup-header">Node ${nodeId}</div>
-    <button class="node-popup-btn" data-action="plan">
-      <span class="popup-icon">🗺️</span>
-      <span>View in Query Plan</span>
-    </button>
-    <button class="node-popup-btn" data-action="raw">
-      <span class="popup-icon">🔍</span>
-      <span>Find in Raw JSON</span>
-    </button>
-  `;
-
-  // Position popup near the click
-  popup.style.position = 'fixed';
-  popup.style.left = `${event.clientX}px`;
-  popup.style.top = `${event.clientY}px`;
-  popup.style.zIndex = '1000';
-
-  document.body.appendChild(popup);
-
-  // Adjust position if popup goes off-screen
-  const rect = popup.getBoundingClientRect();
-  if (rect.right > window.innerWidth) {
-    popup.style.left = `${window.innerWidth - rect.width - 10}px`;
-  }
-  if (rect.bottom > window.innerHeight) {
-    popup.style.top = `${window.innerHeight - rect.height - 10}px`;
-  }
-
-  // Handle button clicks
-  popup.querySelectorAll('.node-popup-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.dataset.action;
-      hideNodePopup();
-
-      if (action === 'plan') {
-        window.navigateToQueryPlanNode(nodeId);
-      } else if (action === 'raw') {
-        window.navigateToRawJsonNode(nodeId);
-      }
-    });
-  });
-
-  // Close popup on outside click
-  setTimeout(() => {
-    document.addEventListener('click', hideNodePopupOnOutsideClick);
-  }, 10);
-}
-
-/**
- * Hide node popup
- */
-function hideNodePopup() {
-  const existing = document.querySelector('.node-popup');
-  if (existing) {
-    existing.remove();
-  }
-  document.removeEventListener('click', hideNodePopupOnOutsideClick);
-}
-
-/**
- * Hide popup when clicking outside
- */
-function hideNodePopupOnOutsideClick(e) {
-  if (!e.target.closest('.node-popup')) {
-    hideNodePopup();
-  }
+  setupNodeLinkHandlers(tbody, 'scan');
 }
 
 /**

@@ -581,14 +581,18 @@ window.navigateToQueryPlanNode = function(planNodeId) {
 };
 
 /**
- * Navigate to Raw JSON tab and search for CONNECTOR_SCAN operator
+ * Navigate to Raw JSON tab and search for an operator by type
  * @param {number} planNodeId - The plan_node_id to search for
+ * @param {string} operatorType - The operator type ('scan' or 'join')
  */
-window.navigateToRawJsonNode = function(planNodeId) {
+window.navigateToRawJsonNode = function(planNodeId, operatorType = 'scan') {
   switchToTab('raw');
   // Give time for the tab to become visible
   setTimeout(() => {
-    searchFor(`CONNECTOR_SCAN (plan_node_id=${planNodeId})`);
+    const searchTerm = operatorType === 'join'
+      ? `HASH_JOIN_PROBE (plan_node_id=${planNodeId})`
+      : `CONNECTOR_SCAN (plan_node_id=${planNodeId})`;
+    searchFor(searchTerm);
   }, 100);
 };
 

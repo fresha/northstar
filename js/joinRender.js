@@ -3,12 +3,13 @@
  */
 
 import { calculateJoinStats } from './joinParser.js';
+import { setupNodeLinkHandlers } from './nodePopup.js';
 
 // Define the column configuration for the join table
 // Columns are grouped into subsections
 export const JOIN_METRICS_CONFIG = [
   // === Summary Section ===
-  { key: 'planNodeId',           label: 'Plan Node ID',      source: 'summary', type: 'number',    group: 'Summary' },
+  { key: 'planNodeId',           label: 'Plan Node ID',      source: 'summary', type: 'number',    group: 'Summary', clickable: true },
   { key: 'joinType',             label: 'Join Type',         source: 'summary', type: 'string',    group: 'Summary' },
   { key: 'distributionMode',     label: 'Distribution',      source: 'summary', type: 'string',    group: 'Summary' },
   { key: 'totalTime',            label: 'Total Time',        source: 'summary', type: 'time',      group: 'Summary' },
@@ -246,6 +247,11 @@ function renderJoinTableBody(joins) {
         classNames.push('group-start');
       }
 
+      // Add clickable class for interactive columns
+      if (col.clickable) {
+        classNames.push('clickable-cell');
+      }
+
       switch (col.type) {
         case 'string':
           classNames.push('table-name');
@@ -280,11 +286,19 @@ function renderJoinTableBody(joins) {
           break;
       }
 
+      // If clickable, wrap content in a link-like span with data attribute
+      if (col.clickable && displayValue !== '-') {
+        displayValue = `<span class="node-link" data-node-id="${value}" data-node-type="join">${displayValue}</span>`;
+      }
+
       return `<td class="${classNames.join(' ')}" title="${value || ''}">${displayValue}</td>`;
     }).join('');
 
     return `<tr>${cells}</tr>`;
   }).join('');
+
+  // Add click handlers for node links
+  setupNodeLinkHandlers(tbody, 'join');
 }
 
 /**

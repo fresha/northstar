@@ -1620,14 +1620,13 @@ td.rows {
   text-align: center;
 }
 
-.loading-spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+.loading-logo {
+  width: 80px;
+  height: 80px;
+  animation: spin 2s linear infinite;
+  margin: 0 auto 1.5rem;
+  display: block;
+  filter: drop-shadow(0 0 8px rgba(136, 192, 208, 0.4));
 }
 
 @keyframes spin {

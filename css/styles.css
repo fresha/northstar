@@ -98,6 +98,9 @@ header {
   align-items: center;
   justify-content: space-between;
   gap: 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header-left {
@@ -201,6 +204,8 @@ main {
   max-width: 1800px;
   margin: 0 auto;
   padding: 2rem;
+  position: relative;
+  z-index: 1;  /* Below sticky header (100) and tabs (99) */
 }
 
 /* ========================================
@@ -670,6 +675,9 @@ td.rows {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   padding: 0 2rem;
+  position: sticky;
+  top: 81px; /* Height of header (padding + logo + border) */
+  z-index: 99;
 }
 
 .tab-btn {
@@ -992,7 +1000,7 @@ td.rows {
 /* Floating Toolbar - positioned inside canvas area */
 .canvas-toolbar {
   position: absolute;
-  top: 80px;  /* Account for header height */
+  top: 80px;  /* Inside plan canvas area */
   right: 24px;
   display: none;
   gap: 4px;
@@ -1050,7 +1058,7 @@ td.rows {
 /* Minimap - positioned inside canvas area */
 .viewport-minimap {
   position: absolute;
-  top: 80px;  /* Account for header height */
+  top: 80px;  /* Inside plan canvas area */
   left: 24px;
   width: 180px;
   height: 120px;

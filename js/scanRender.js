@@ -10,7 +10,7 @@ import { parseNumericValue, sumMetric, formatNumber, formatBytes } from './utils
 export const METRICS_CONFIG = [
   // === General Info (no group) ===
   { key: 'Table',                           label: 'Table',              source: 'unique', type: 'string',    group: null,       sticky: true },
-  { key: 'planNodeId',                      label: 'Node ID',            source: 'meta',   type: 'number',    group: null },
+  { key: 'planNodeId',                      label: 'Node ID',            source: 'meta',   type: 'number',    group: null,       clickable: true },
   { key: 'Predicates',                      label: 'Predicates',         source: 'unique', type: 'predicate', group: null },
   
   // === Timing Metrics (no group) ===
@@ -281,17 +281,17 @@ function renderTable(scans) {
  */
 function renderTableBody(scans) {
   const tbody = document.getElementById('tableBody');
-  
+
   tbody.innerHTML = scans.map(scan => {
     const cells = METRICS_CONFIG.map((col, idx) => {
       // Get value from commonMetrics, uniqueMetrics, or directly from scan object (meta)
       const source = col.source === 'meta' ? scan : (col.source === 'common' ? scan.commonMetrics : scan.uniqueMetrics);
       const value = source[col.key];
-      
+
       // Apply styling based on type
       let displayValue = value ?? '-';
       let classNames = [];
-      
+
       // Add group-start class for left border
       if (groupStartIndices.has(idx)) {
         classNames.push('group-start');
@@ -300,6 +300,11 @@ function renderTableBody(scans) {
       // Add sticky class for fixed columns
       if (col.sticky) {
         classNames.push('sticky-col');
+      }
+
+      // Add clickable class for interactive columns
+      if (col.clickable) {
+        classNames.push('clickable-cell');
       }
 
       switch (col.type) {
@@ -326,12 +331,111 @@ function renderTableBody(scans) {
           classNames.push('number');
           break;
       }
-      
+
+      // If clickable, wrap content in a link-like span with data attribute
+      if (col.clickable && displayValue !== '-') {
+        displayValue = `<span class="node-link" data-node-id="${value}">${displayValue}</span>`;
+      }
+
       return `<td class="${classNames.join(' ')}" title="${value || ''}">${displayValue}</td>`;
     }).join('');
-    
+
     return `<tr>${cells}</tr>`;
   }).join('');
+
+  // Add click handlers for node links
+  setupNodeLinkHandlers(tbody);
+}
+
+/**
+ * Setup click handlers for node ID links
+ */
+function setupNodeLinkHandlers(tbody) {
+  tbody.querySelectorAll('.node-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nodeId = parseInt(link.dataset.nodeId);
+      showNodePopup(e, nodeId);
+    });
+  });
+}
+
+/**
+ * Show popup menu for node navigation
+ */
+function showNodePopup(event, nodeId) {
+  // Remove any existing popup
+  hideNodePopup();
+
+  const popup = document.createElement('div');
+  popup.className = 'node-popup';
+  popup.innerHTML = `
+    <div class="node-popup-header">Node ${nodeId}</div>
+    <button class="node-popup-btn" data-action="plan">
+      <span class="popup-icon">🗺️</span>
+      <span>View in Query Plan</span>
+    </button>
+    <button class="node-popup-btn" data-action="raw">
+      <span class="popup-icon">🔍</span>
+      <span>Find in Raw JSON</span>
+    </button>
+  `;
+
+  // Position popup near the click
+  popup.style.position = 'fixed';
+  popup.style.left = `${event.clientX}px`;
+  popup.style.top = `${event.clientY}px`;
+  popup.style.zIndex = '1000';
+
+  document.body.appendChild(popup);
+
+  // Adjust position if popup goes off-screen
+  const rect = popup.getBoundingClientRect();
+  if (rect.right > window.innerWidth) {
+    popup.style.left = `${window.innerWidth - rect.width - 10}px`;
+  }
+  if (rect.bottom > window.innerHeight) {
+    popup.style.top = `${window.innerHeight - rect.height - 10}px`;
+  }
+
+  // Handle button clicks
+  popup.querySelectorAll('.node-popup-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      hideNodePopup();
+
+      if (action === 'plan') {
+        window.navigateToQueryPlanNode(nodeId);
+      } else if (action === 'raw') {
+        window.navigateToRawJsonNode(nodeId);
+      }
+    });
+  });
+
+  // Close popup on outside click
+  setTimeout(() => {
+    document.addEventListener('click', hideNodePopupOnOutsideClick);
+  }, 10);
+}
+
+/**
+ * Hide node popup
+ */
+function hideNodePopup() {
+  const existing = document.querySelector('.node-popup');
+  if (existing) {
+    existing.remove();
+  }
+  document.removeEventListener('click', hideNodePopupOnOutsideClick);
+}
+
+/**
+ * Hide popup when clicking outside
+ */
+function hideNodePopupOnOutsideClick(e) {
+  if (!e.target.closest('.node-popup')) {
+    hideNodePopup();
+  }
 }
 
 /**

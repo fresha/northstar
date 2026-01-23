@@ -216,6 +216,40 @@ function clampCameraToBounds() {
 }
 
 /**
+ * Zoom to a specific node by plan_node_id
+ * @param {number} planNodeId - The plan_node_id to zoom to
+ * @returns {boolean} - True if node was found and zoomed to
+ */
+export function zoomToNode(planNodeId) {
+  const nodeElement = document.getElementById(`node-${planNodeId}`);
+  if (!nodeElement || !planCanvas) return false;
+
+  // Get node position from stored positions
+  const pos = currentNodePositions[planNodeId];
+  if (!pos) return false;
+
+  const rect = planCanvas.getBoundingClientRect();
+
+  // Set zoom to a reasonable level for viewing a node
+  camera.zoom = 1.2;
+
+  // Center the camera on the node
+  const nodeWidth = NODE_WIDTH;
+  const nodeHeight = NODE_HEIGHT;
+  camera.x = pos.x + nodeWidth / 2 - rect.width / (2 * camera.zoom);
+  camera.y = pos.y + nodeHeight / 2 - rect.height / (2 * camera.zoom);
+
+  clampCameraToBounds();
+  updateTransform(true);
+
+  // Highlight the node temporarily
+  nodeElement.classList.add('highlighted');
+  setTimeout(() => nodeElement.classList.remove('highlighted'), 2000);
+
+  return true;
+}
+
+/**
  * Fit content to view
  */
 function fitToView(smooth = true) {

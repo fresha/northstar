@@ -1240,6 +1240,106 @@ td.rows {
   opacity: 1;
 }
 
+/* Highlighted node (when navigated to via popup) */
+.plan-node.highlighted {
+  animation: node-highlight 2s ease-out;
+  box-shadow: 0 0 0 3px var(--accent), 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes node-highlight {
+  0% {
+    box-shadow: 0 0 0 6px var(--accent), 0 0 30px var(--accent);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 3px var(--accent), 0 8px 32px rgba(0, 0, 0, 0.5);
+    transform: scale(1);
+  }
+}
+
+/* ========================================
+   Node ID Link & Popup Styles
+   ======================================== */
+
+/* Clickable node ID in scan table */
+.node-link {
+  color: var(--accent);
+  cursor: pointer;
+  background: var(--accent-dim);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.node-link:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+.clickable-cell {
+  cursor: pointer;
+}
+
+/* Node popup menu */
+.node-popup {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  min-width: 180px;
+  overflow: hidden;
+  animation: popup-appear 0.15s ease-out;
+}
+
+@keyframes popup-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.node-popup-header {
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+
+.node-popup-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.node-popup-btn:hover {
+  background: var(--accent-dim);
+}
+
+.node-popup-btn:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.popup-icon {
+  font-size: 1rem;
+}
+
 /* ========================================
    Footer
    ======================================== */

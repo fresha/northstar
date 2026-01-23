@@ -6,13 +6,13 @@
 import { processQueryProfile } from './scanParser.js';
 import { renderDashboard } from './scanRender.js';
 import { initCompare } from './compare.js';
-import { setupPlanDropZone, refreshPlanView } from './visualizer.js';
+import { setupPlanDropZone, refreshPlanView, zoomToNode } from './visualizer.js';
 import { processJoinProfile } from './joinParser.js';
 import { renderJoinDashboard } from './joinRender.js';
 import { trackEvent } from './analytics.js';
 import { initQueryState, getQuery, setQuery, addListener, hasQuery, getShareableUrl, getQuerySource } from './queryState.js';
 import { loadFromUrl, shareToDpaste, parseNorthStarUrl, extractGistId, extractPasteId } from './urlLoader.js';
-import { initRawJson, updateRawTab, clearRawTab } from './rawJson.js';
+import { initRawJson, updateRawTab, clearRawTab, searchFor } from './rawJson.js';
 import { initTheme } from './theme.js';
 
 // ========================================
@@ -562,4 +562,33 @@ initQueryState().then(({ loaded, tab }) => {
 }).catch(err => {
   console.error('Failed to initialize query state:', err);
 });
+
+// ========================================
+// Global Navigation Functions
+// Exposed for use by other modules (e.g., scanRender.js popup)
+// ========================================
+
+/**
+ * Navigate to a specific node in the Query Plan tab
+ * @param {number} planNodeId - The plan_node_id to navigate to
+ */
+window.navigateToQueryPlanNode = function(planNodeId) {
+  switchToTab('plan');
+  // Give time for the tab to render before zooming
+  setTimeout(() => {
+    zoomToNode(planNodeId);
+  }, 100);
+};
+
+/**
+ * Navigate to Raw JSON tab and search for CONNECTOR_SCAN operator
+ * @param {number} planNodeId - The plan_node_id to search for
+ */
+window.navigateToRawJsonNode = function(planNodeId) {
+  switchToTab('raw');
+  // Give time for the tab to become visible
+  setTimeout(() => {
+    searchFor(`CONNECTOR_SCAN (plan_node_id=${planNodeId})`);
+  }, 100);
+};
 

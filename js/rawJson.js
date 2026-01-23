@@ -69,6 +69,17 @@ export function clearRawTab() {
   clearSearchState();
 }
 
+/**
+ * Programmatically search for a term in the Raw JSON
+ * @param {string} term - The search term
+ */
+export function searchFor(term) {
+  if (!rawJsonText || !term) return;
+
+  rawSearchInput.value = term;
+  performSearch(term);
+}
+
 // ========================================
 // Private functions
 // ========================================

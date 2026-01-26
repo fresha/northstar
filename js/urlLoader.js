@@ -186,6 +186,17 @@ export function parseNorthStarUrl(hash) {
     }
   }
 
+  // Legacy format: #gist:ID or #paste:ID (fallback for old URLs)
+  if (hashTab && (hashTab.startsWith('gist:') || hashTab.startsWith('paste:'))) {
+    const source = parseSourceRef(hashTab);
+    if (source) {
+      return {
+        ...source,
+        tab: null // No tab info in legacy format
+      };
+    }
+  }
+
   return null;
 }
 

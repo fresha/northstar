@@ -397,7 +397,7 @@ globalShareBtn.addEventListener('click', async () => {
 
     // If comparison was loaded from URL, reuse those IDs
     if (compareSource && compareSource.baseline && compareSource.optimized) {
-      const shareUrl = `${window.location.origin}${window.location.pathname}#compare:${compareSource.baseline.id}..${compareSource.optimized.id}`;
+      const shareUrl = `${buildCompareUrl(compareSource.baseline, compareSource.optimized)}#compare`;
 
       try {
         await navigator.clipboard.writeText(shareUrl);
@@ -430,7 +430,7 @@ globalShareBtn.addEventListener('click', async () => {
 
   // If query was loaded from gist/paste, reuse that URL
   if (source && (source.type === 'gist' || source.type === 'paste')) {
-    const shareUrl = `${window.location.origin}${window.location.pathname}#${source.type}:${source.id}&tab=${currentTab}`;
+    const shareUrl = `${buildQueryUrl(source)}#${currentTab}`;
 
     try {
       await navigator.clipboard.writeText(shareUrl);

@@ -8,7 +8,7 @@
  * Note: No localStorage persistence - queries live in external services
  */
 
-import { loadFromUrl, parseNorthStarUrl } from './urlLoader.js';
+import { loadFromUrl, parseNorthStarUrl, buildQueryUrl } from './urlLoader.js';
 
 // Current query JSON
 let currentQuery = null;
@@ -119,9 +119,9 @@ export function setQuery(queryJson, source = null) {
   currentQuery = queryJson;
   querySource = source;
 
-  // Update URL if source is provided
+  // Update URL if source is provided (using new query param format)
   if (source && (source.type === 'gist' || source.type === 'paste')) {
-    const newUrl = `${window.location.origin}${window.location.pathname}#${source.type}:${source.id}`;
+    const newUrl = buildQueryUrl(source);
     window.history.replaceState(null, '', newUrl);
   }
 

@@ -14,6 +14,7 @@ import { initQueryState, getQuery, setQuery, clearQuery, addListener, hasQuery, 
 import { loadFromUrl, shareToDpaste, parseNorthStarUrl, extractGistId, extractPasteId, buildQueryUrl, buildCompareUrl } from './urlLoader.js';
 import { initRawJson, updateRawTab, clearRawTab, searchFor } from './rawJson.js';
 import { initTheme } from './theme.js';
+import { initTooltips } from './utils.js';
 
 // ========================================
 // DOM Elements - Scan Summary Tab
@@ -648,6 +649,9 @@ initCompare();
 
 // Initialize Raw JSON tab (search, copy)
 initRawJson();
+
+// Initialize global tooltip system
+initTooltips();
 
 // Initialize plan visualization (sets up listener for global state)
 setupPlanDropZone();

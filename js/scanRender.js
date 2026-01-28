@@ -8,45 +8,46 @@ import { setupNodeLinkHandlers } from './nodePopup.js';
 // Define which metrics we want to display (from user requirements)
 // Columns are grouped - columns with the same 'group' value will share a header
 // group: null means no group header (standalone column)
+// description: tooltip text explaining the metric
 export const METRICS_CONFIG = [
   // === General Info (no group) ===
-  { key: 'Table',                           label: 'Table',              source: 'unique', type: 'string',    group: null,       sticky: true },
-  { key: 'planNodeId',                      label: 'Node ID',            source: 'meta',   type: 'number',    group: null,       clickable: true },
-  { key: 'Predicates',                      label: 'Predicates',         source: 'unique', type: 'predicate', group: null },
-  
+  { key: 'Table',                           label: 'Table',              source: 'unique', type: 'string',    group: null,       sticky: true, description: 'Name of the table being scanned' },
+  { key: 'planNodeId',                      label: 'Node ID',            source: 'meta',   type: 'number',    group: null,       clickable: true, description: 'Plan node identifier in the query execution tree' },
+  { key: 'Predicates',                      label: 'Predicates',         source: 'unique', type: 'predicate', group: null, description: 'Filter conditions applied during the scan' },
+
   // === Timing Metrics (no group) ===
-  { key: 'PullRowNum',                      label: 'Pull Rows',          source: 'common', type: 'rows',      group: null },
-  { key: 'JoinRuntimeFilterInputRows',      label: 'RF Input',           source: 'common', type: 'rows',      group: null },
-  { key: 'JoinRuntimeFilterOutputRows',     label: 'RF Output',          source: 'common', type: 'rows',      group: null },
-  { key: 'BytesRead',                       label: 'Bytes Read',         source: 'unique', type: 'bytes',     group: null },
-  { key: 'OperatorTotalTime',               label: 'Operator Time',      source: 'common', type: 'time',      group: 'Run Time' },
-  { key: 'ScanTime',                        label: 'Scan Time',          source: 'unique', type: 'time',      group: 'Run Time' },
-  { key: 'IOTaskExecTime',                  label: 'IO Exec',            source: 'unique', type: 'time',      group: 'Scan Time' },
-  { key: 'IOTaskWaitTime',                  label: 'IO Wait',            source: 'unique', type: 'time',      group: 'Scan Time' },
-  { key: 'SegmentInit',                     label: 'Seg Init',           source: 'unique', type: 'time',      group: 'Scan Time' },
-  { key: 'SegmentRead',                     label: 'Seg Read',           source: 'unique', type: 'time',      group: 'Scan Time' },
-  
+  { key: 'PullRowNum',                      label: 'Pull Rows',          source: 'common', type: 'rows',      group: null, description: 'Cumulative number of output rows for the operator' },
+  { key: 'JoinRuntimeFilterInputRows',      label: 'RF Input',           source: 'common', type: 'rows',      group: null, description: 'Rows received before applying runtime filter from joins' },
+  { key: 'JoinRuntimeFilterOutputRows',     label: 'RF Output',          source: 'common', type: 'rows',      group: null, description: 'Rows remaining after applying runtime filter (lower = more filtered)' },
+  { key: 'BytesRead',                       label: 'Bytes Read',         source: 'unique', type: 'bytes',     group: null, description: 'Total bytes read from storage' },
+  { key: 'OperatorTotalTime',               label: 'Operator Time',      source: 'common', type: 'time',      group: 'Run Time', description: 'Total wall-clock time spent in this operator' },
+  { key: 'ScanTime',                        label: 'Scan Time',          source: 'unique', type: 'time',      group: 'Run Time', description: 'Time spent performing the actual scan operation' },
+  { key: 'IOTaskExecTime',                  label: 'IO Exec',            source: 'unique', type: 'time',      group: 'Scan Time', description: 'Time spent executing I/O operations (reading from disk/cache)' },
+  { key: 'IOTaskWaitTime',                  label: 'IO Wait',            source: 'unique', type: 'time',      group: 'Scan Time', description: 'Time spent waiting for I/O operations to complete' },
+  { key: 'SegmentInit',                     label: 'Seg Init',           source: 'unique', type: 'time',      group: 'Scan Time', description: 'Time spent initializing segments before reading' },
+  { key: 'SegmentRead',                     label: 'Seg Read',           source: 'unique', type: 'time',      group: 'Scan Time', description: 'Time spent reading data from segments' },
+
   // === Row Metrics (no group) ===
-  { key: 'RowsRead',                        label: 'Rows Read',          source: 'unique', type: 'rows',      group: 'Pred Filters' },
-  { key: 'PredFilterRows',                  label: 'Pred Filter',        source: 'unique', type: 'rows',      group: 'Pred Filters' },
-  { key: 'LateMaterializeRows',             label: 'Late Mat',           source: 'unique', type: 'rows',      group: 'Pred Filters' },
-  { key: 'RawRowsRead',                     label: 'Raw Rows Read',      source: 'unique', type: 'rows',      group: 'Pred Filters' },
-        
+  { key: 'RowsRead',                        label: 'Rows Read',          source: 'unique', type: 'rows',      group: 'Pred Filters', description: 'Rows read after applying predicate filters' },
+  { key: 'PredFilterRows',                  label: 'Pred Filter',        source: 'unique', type: 'rows',      group: 'Pred Filters', description: 'Rows filtered out by predicate evaluation' },
+  { key: 'LateMaterializeRows',             label: 'Late Mat',           source: 'unique', type: 'rows',      group: 'Pred Filters', description: 'Rows processed using late materialization optimization' },
+  { key: 'RawRowsRead',                     label: 'Raw Rows Read',      source: 'unique', type: 'rows',      group: 'Pred Filters', description: 'Total raw rows read before any filtering' },
+
   // === Index Filters (GROUPED) ===
-  { key: 'DelVecFilterRows',                label: 'Del Vec',            source: 'unique', type: 'rows',      group: 'Index Filters' },
-  { key: 'ZoneMapIndexFilterRows',          label: 'Zone Map',           source: 'unique', type: 'rows',      group: 'Index Filters' },
-  { key: 'SegmentZoneMapFilterRows',        label: 'Seg Zone Map',       source: 'unique', type: 'rows',      group: 'Index Filters' },
-  { key: 'BloomFilterFilterRows',           label: 'Bloom',              source: 'unique', type: 'rows',      group: 'Index Filters' },
+  { key: 'DelVecFilterRows',                label: 'Del Vec',            source: 'unique', type: 'rows',      group: 'Index Filters', description: 'Rows filtered by delete vector (marks deleted rows)' },
+  { key: 'ZoneMapIndexFilterRows',          label: 'Zone Map',           source: 'unique', type: 'rows',      group: 'Index Filters', description: 'Rows filtered using zone map index (min/max per column chunk)' },
+  { key: 'SegmentZoneMapFilterRows',        label: 'Seg Zone Map',       source: 'unique', type: 'rows',      group: 'Index Filters', description: 'Rows filtered at segment level using zone maps' },
+  { key: 'BloomFilterFilterRows',           label: 'Bloom',              source: 'unique', type: 'rows',      group: 'Index Filters', description: 'Rows filtered using bloom filter index' },
 
   // === Short Key Filtering (GROUPED) ===
-  { key: 'RemainingRowsAfterShortKeyFilter',label: 'Rows After ShortKey',source: 'unique', type: 'rows',      group: 'Short Key' },
-  { key: 'ShortKeyFilterRows',              label: 'ShortKey Filter',    source: 'unique', type: 'rows',      group: 'Short Key' },
+  { key: 'RemainingRowsAfterShortKeyFilter',label: 'Rows After ShortKey',source: 'unique', type: 'rows',      group: 'Short Key', description: 'Rows remaining after short key prefix filtering' },
+  { key: 'ShortKeyFilterRows',              label: 'ShortKey Filter',    source: 'unique', type: 'rows',      group: 'Short Key', description: 'Rows filtered using short key index (first N sort key columns)' },
 
   // === Scan Structure (GROUPED) ===
-  { key: 'TabletCount',                     label: 'Tablets',            source: 'unique', type: 'number',    group: 'Scan Structure' },
-  { key: 'RowsetsReadCount',                label: 'Rowsets',            source: 'unique', type: 'number',    group: 'Scan Structure' },
-  { key: 'SegmentsReadCount',               label: 'Segments',           source: 'unique', type: 'number',    group: 'Scan Structure' },
-  { key: 'PagesCountTotal',                 label: 'Pages',              source: 'unique', type: 'number',    group: 'Scan Structure' },
+  { key: 'TabletCount',                     label: 'Tablets',            source: 'unique', type: 'number',    group: 'Scan Structure', description: 'Number of tablets scanned (data partitions)' },
+  { key: 'RowsetsReadCount',                label: 'Rowsets',            source: 'unique', type: 'number',    group: 'Scan Structure', description: 'Number of rowsets read (groups of segments)' },
+  { key: 'SegmentsReadCount',               label: 'Segments',           source: 'unique', type: 'number',    group: 'Scan Structure', description: 'Number of segments read (columnar storage files)' },
+  { key: 'PagesCountTotal',                 label: 'Pages',              source: 'unique', type: 'number',    group: 'Scan Structure', description: 'Total pages read from column files' },
 ];
 
 // Store data globally for sorting
@@ -246,12 +247,18 @@ function renderTable(scans) {
   // ROW 2: Individual Column Headers (sortable)
   // =============================================
   const columnHeaderRow = document.createElement('tr');
-  
+
   METRICS_CONFIG.forEach((col, idx) => {
     const th = document.createElement('th');
     th.dataset.col = idx;
     th.dataset.key = col.key;
     th.textContent = col.label;
+
+    // Add tooltip if description exists
+    if (col.description) {
+      th.dataset.tooltip = col.description;
+      th.classList.add('has-tooltip');
+    }
 
     // Add group-start class for left border
     if (groupStartIndices.has(idx)) {

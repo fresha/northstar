@@ -88,3 +88,66 @@ export function formatTime(seconds) {
   return ns.toFixed(0) + 'ns';
 }
 
+// Global tooltip system
+let tooltipElement = null;
+
+export function initTooltips() {
+  // Create tooltip element if it doesn't exist
+  if (!tooltipElement) {
+    tooltipElement = document.createElement('div');
+    tooltipElement.className = 'global-tooltip';
+    document.body.appendChild(tooltipElement);
+  }
+
+  // Event delegation for tooltip handling
+  document.addEventListener('mouseenter', (e) => {
+    const target = e.target.closest('[data-tooltip]');
+    if (target) {
+      showTooltip(target);
+    }
+  }, true);
+
+  document.addEventListener('mouseleave', (e) => {
+    const target = e.target.closest('[data-tooltip]');
+    if (target) {
+      hideTooltip();
+    }
+  }, true);
+}
+
+function showTooltip(element) {
+  const text = element.dataset.tooltip;
+  if (!text) return;
+
+  tooltipElement.textContent = text;
+  tooltipElement.classList.add('visible');
+
+  // Position tooltip
+  const rect = element.getBoundingClientRect();
+  const tooltipRect = tooltipElement.getBoundingClientRect();
+
+  // Default: center below the element
+  let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+  let top = rect.bottom + 8;
+
+  // Keep within viewport horizontally
+  const padding = 12;
+  if (left < padding) {
+    left = padding;
+  } else if (left + tooltipRect.width > window.innerWidth - padding) {
+    left = window.innerWidth - tooltipRect.width - padding;
+  }
+
+  // If tooltip would go below viewport, show above instead
+  if (top + tooltipRect.height > window.innerHeight - padding) {
+    top = rect.top - tooltipRect.height - 8;
+  }
+
+  tooltipElement.style.left = `${left}px`;
+  tooltipElement.style.top = `${top}px`;
+}
+
+function hideTooltip() {
+  tooltipElement.classList.remove('visible');
+}
+

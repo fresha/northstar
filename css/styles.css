@@ -551,6 +551,34 @@ th:hover {
   color: var(--accent);
 }
 
+/* Column headers with tooltips */
+th.has-tooltip {
+  cursor: pointer;
+}
+
+/* Global tooltip element (positioned via JS) */
+.global-tooltip {
+  position: fixed;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.global-tooltip.visible {
+  opacity: 1;
+}
+
 th.sorted-asc::after {
   content: ' ▲';
   color: var(--accent);

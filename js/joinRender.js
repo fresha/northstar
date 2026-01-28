@@ -7,31 +7,32 @@ import { setupNodeLinkHandlers } from './nodePopup.js';
 
 // Define the column configuration for the join table
 // Columns are grouped into subsections
+// description: tooltip text explaining the metric
 export const JOIN_METRICS_CONFIG = [
   // === Summary Section ===
-  { key: 'planNodeId',           label: 'Plan Node ID',      source: 'summary', type: 'number',    group: 'Summary', clickable: true },
-  { key: 'joinType',             label: 'Join Type',         source: 'summary', type: 'string',    group: 'Summary' },
-  { key: 'distributionMode',     label: 'Distribution',      source: 'summary', type: 'string',    group: 'Summary' },
-  { key: 'totalTime',            label: 'Total Time',        source: 'summary', type: 'time',      group: 'Summary' },
-  { key: 'joinPredicates',       label: 'Predicates',        source: 'summary', type: 'predicate', group: 'Summary' },
+  { key: 'planNodeId',           label: 'Plan Node ID',      source: 'summary', type: 'number',    group: 'Summary', clickable: true, description: 'Plan node identifier in the query execution tree' },
+  { key: 'joinType',             label: 'Join Type',         source: 'summary', type: 'string',    group: 'Summary', description: 'Type of join operation (INNER, LEFT, RIGHT, FULL, SEMI, ANTI)' },
+  { key: 'distributionMode',     label: 'Distribution',      source: 'summary', type: 'string',    group: 'Summary', description: 'How data is distributed for the join (BROADCAST, SHUFFLE, COLOCATE)' },
+  { key: 'totalTime',            label: 'Total Time',        source: 'summary', type: 'time',      group: 'Summary', description: 'Combined time for both build and probe phases' },
+  { key: 'joinPredicates',       label: 'Predicates',        source: 'summary', type: 'predicate', group: 'Summary', description: 'Join condition predicates (equality and other conditions)' },
 
   // === Probe Side (HASH_JOIN_PROBE) ===
-  { key: 'pullRowNum',           label: 'Pull Rows',         source: 'probe',   type: 'rows',      group: 'Probe Side' },
-  { key: 'pushRowNum',           label: 'Push Rows',         source: 'probe',   type: 'rows',      group: 'Probe Side' },
-  { key: 'outputChunkBytes',     label: 'Output Bytes',      source: 'probe',   type: 'bytes',     group: 'Probe Side' },
-  { key: 'operatorTotalTime',    label: 'Operator Time',     source: 'probe',   type: 'timeWithPct', group: 'Probe Side' },
-  { key: 'searchHashTableTime',  label: 'Search HT Time',    source: 'probe',   type: 'time',      group: 'Probe Side' },
-  { key: 'probeConjunctEvaluateTime', label: 'Probe Conjunct', source: 'probe', type: 'time',      group: 'Probe Side' },
+  { key: 'pullRowNum',           label: 'Pull Rows',         source: 'probe',   type: 'rows',      group: 'Probe Side', description: 'Cumulative number of output rows for the probe operator' },
+  { key: 'pushRowNum',           label: 'Push Rows',         source: 'probe',   type: 'rows',      group: 'Probe Side', description: 'Cumulative number of input rows for the probe operator' },
+  { key: 'outputChunkBytes',     label: 'Output Bytes',      source: 'probe',   type: 'bytes',     group: 'Probe Side', description: 'Total bytes output from the probe phase' },
+  { key: 'operatorTotalTime',    label: 'Operator Time',     source: 'probe',   type: 'timeWithPct', group: 'Probe Side', description: 'Time spent in probe phase (looking up hash table)' },
+  { key: 'searchHashTableTime',  label: 'Search HT Time',    source: 'probe',   type: 'time',      group: 'Probe Side', description: 'Time spent searching the hash table for matches' },
+  { key: 'probeConjunctEvaluateTime', label: 'Probe Conjunct', source: 'probe', type: 'time',      group: 'Probe Side', description: 'Time evaluating non-equality join predicates during probe' },
 
   // === Build Side (HASH_JOIN_BUILD) ===
-  { key: 'pushRowNum',           label: 'Push Rows',         source: 'build',   type: 'rows',      group: 'Build Side' },
-  { key: 'buildInputRows',       label: 'Input Rows',        source: 'build',   type: 'rows',      group: 'Build Side' },
-  { key: 'hashTableMemoryUsage', label: 'HT Memory',         source: 'build',   type: 'bytes',     group: 'Build Side' },
-  { key: 'peakRevocableMemoryBytes', label: 'Peak Revocable', source: 'build', type: 'bytes',     group: 'Build Side' },
-  { key: 'operatorTotalTime',    label: 'Operator Time',     source: 'build',   type: 'timeWithPct', group: 'Build Side' },
-  { key: 'buildHashTableTime',   label: 'Build HT Time',     source: 'build',   type: 'time',      group: 'Build Side' },
-  { key: 'copyRightTableChunkTime', label: 'Copy Right Time', source: 'build', type: 'time',      group: 'Build Side' },
-  { key: 'rowsSpilled',          label: 'Rows Spilled',      source: 'build',   type: 'rows',      group: 'Build Side' },
+  { key: 'pushRowNum',           label: 'Push Rows',         source: 'build',   type: 'rows',      group: 'Build Side', description: 'Cumulative number of input rows for the build operator' },
+  { key: 'buildInputRows',       label: 'Input Rows',        source: 'build',   type: 'rows',      group: 'Build Side', description: 'Total input rows for hash table construction' },
+  { key: 'hashTableMemoryUsage', label: 'HT Memory',         source: 'build',   type: 'bytes',     group: 'Build Side', description: 'Memory used by the hash table' },
+  { key: 'peakRevocableMemoryBytes', label: 'Peak Revocable', source: 'build', type: 'bytes',     group: 'Build Side', description: 'Peak memory that could be released under memory pressure' },
+  { key: 'operatorTotalTime',    label: 'Operator Time',     source: 'build',   type: 'timeWithPct', group: 'Build Side', description: 'Time spent building the hash table' },
+  { key: 'buildHashTableTime',   label: 'Build HT Time',     source: 'build',   type: 'time',      group: 'Build Side', description: 'Time specifically for hash table construction' },
+  { key: 'copyRightTableChunkTime', label: 'Copy Right Time', source: 'build', type: 'time',      group: 'Build Side', description: 'Time copying data chunks from the right table' },
+  { key: 'rowsSpilled',          label: 'Rows Spilled',      source: 'build',   type: 'rows',      group: 'Build Side', description: 'Rows spilled to disk due to memory pressure (high = memory issue)' },
 ];
 
 // Store data globally for sorting
@@ -200,6 +201,12 @@ function renderJoinTable(joins) {
     th.dataset.key = col.key;
     th.dataset.source = col.source;
     th.textContent = col.label;
+
+    // Add tooltip if description exists
+    if (col.description) {
+      th.dataset.tooltip = col.description;
+      th.classList.add('has-tooltip');
+    }
 
     // Add group-start class for left border
     if (joinGroupStartIndices.has(idx)) {

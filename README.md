@@ -8,31 +8,45 @@ A client-side web application for analyzing StarRocks query profiles. Upload JSO
 
 ## Features
 
+### Overview
+Get a high-level view of query performance:
+- Query summary with duration, fragments, and state
+- Pipeline timeline visualization showing execution flow
+- Quick stats for identifying bottlenecks at a glance
+
 ### Scan Summary
-Analyze CONNECTOR_SCAN operators with detailed metrics:
-- Memory usage and allocation
-- Read throughput and bytes read
-- Row counts and timing breakdowns
-- Sortable table with sticky column headers
+Analyze CONNECTOR_SCAN operators with detailed metrics organized into logical groups:
+- **Output**: Pull rows, bytes read
+- **Operator Time**: Total time with skew detection (max/min ratio across tablets)
+- **Scan Time**: Hierarchical breakdown with IO Wait/IO Exec percentages
+- **Index Filters**: Zone map, bloom filter, short key, and delete vector filtering
+- **Predicate Filters**: Raw rows, predicate filter effectiveness, pushdown count
+- **Runtime Filters**: Join-pushed filter effectiveness
+- **Storage**: Tablet, rowset, and segment counts for fragmentation analysis
+
+Color-coded group headers and sortable columns with sticky table name.
 
 ### Join Summary
-Analyze HASH_JOIN operators including:
-- Hash table memory usage
-- Build vs probe time breakdown
-- Row counts for both sides of joins
-- Broadcast join detection
+Analyze HASH_JOIN operators with metrics organized into logical groups:
+- **Summary**: Plan node ID, join type, distribution mode, total time, predicates
+- **Probe Side** (cyan): Pull/push rows, output bytes, operator time with %, hash table search time, conjunct evaluation time
+- **Build Side** (orange): Push/input rows, hash table memory, peak revocable memory, operator time with %, build time, rows spilled
+
+Color-coded group headers and sortable columns for easy analysis.
 
 ### Query Plan
 Visualize the query execution plan:
 - Interactive tree view with pan and zoom
 - Expandable nodes with detailed metrics
-- Color-coded operator types (scan, join, exchange, etc.)
+- Color-coded operator types (scan, join, exchange, aggregate, etc.)
 - Row count labels on edges
 - Minimap for navigation
+- Click node IDs in tables to navigate directly to nodes
 
 ### Raw JSON
 View and search the raw query profile:
-- Searchable JSON viewer with highlighting
+- Collapsible JSON tree viewer
+- Searchable with highlighting
 - Keyboard navigation (Enter/Shift+Enter)
 - Copy to clipboard
 
@@ -47,6 +61,7 @@ Compare two query profiles side-by-side:
 - **Dark/Light Theme**: Toggle between themes with the Nord color palette
 - **URL Sharing**: Share query profiles via GitHub Gist or dpaste links
 - **Global Query Loading**: Load once, analyze across all tabs
+- **Node Navigation**: Click node IDs in scan/join tables to jump to Query Plan
 
 ## Usage
 
@@ -67,23 +82,27 @@ Compare two query profiles side-by-side:
 
 ```
 northstar/
-├── index.html          # Single HTML file with all tab structures
+├── index.html            # Single HTML file with all tab structures
 ├── css/
-│   └── styles.css      # Nord theme, CSS variables, components
+│   └── styles.css        # Nord theme, CSS variables, components
 ├── js/
-│   ├── main.js         # Entry point, tab navigation, file loading
-│   ├── utils.js        # Shared utilities (parsing, formatting)
-│   ├── scanParser.js   # CONNECTOR_SCAN operator parsing
-│   ├── scanRender.js   # Scan Summary tab rendering
-│   ├── joinParser.js   # HASH_JOIN operator parsing
-│   ├── joinRender.js   # Join Summary tab rendering
-│   ├── visualizer.js   # Query Plan tree visualization
-│   ├── compare.js      # Query Comparison tab
-│   ├── rawJson.js      # Raw JSON viewer with search
-│   ├── theme.js        # Dark/light theme management
-│   ├── queryState.js   # Global query state management
-│   └── urlLoader.js    # URL sharing (Gist, dpaste)
-└── test_profiles/      # Sample query profile JSON files
+│   ├── main.js           # Entry point, tab navigation, file loading
+│   ├── utils.js          # Shared utilities (parsing, formatting)
+│   ├── overviewParser.js # Query overview and pipeline analysis
+│   ├── overviewRender.js # Overview tab rendering
+│   ├── scanParser.js     # CONNECTOR_SCAN operator parsing
+│   ├── scanRender.js     # Scan Summary tab rendering
+│   ├── joinParser.js     # HASH_JOIN operator parsing
+│   ├── joinRender.js     # Join Summary tab rendering
+│   ├── visualizer.js     # Query Plan tree visualization
+│   ├── compare.js        # Query Comparison tab
+│   ├── rawJson.js        # Raw JSON viewer with search
+│   ├── nodePopup.js      # Node ID click-to-navigate popup
+│   ├── theme.js          # Dark/light theme management
+│   ├── queryState.js     # Global query state management
+│   ├── urlLoader.js      # URL sharing (Gist, dpaste)
+│   └── analytics.js      # Privacy-respecting analytics
+└── test_profiles/        # Sample query profile JSON files
 ```
 
 ## Local Development

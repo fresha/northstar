@@ -2836,3 +2836,171 @@ td.skew-danger {
   text-align: right;
 }
 
+/* ========================================
+   Slowest Operators Panel & Highlighting
+   ======================================== */
+
+/* Slowest node highlighting in Query Plan */
+.plan-node.slowest-top1 {
+  box-shadow: 0 0 0 3px var(--danger), 0 0 20px var(--danger) !important;
+  z-index: 10;
+}
+
+.plan-node.slowest-top5 {
+  box-shadow: 0 0 0 2px var(--warning), 0 0 12px rgba(235, 203, 139, 0.5) !important;
+  z-index: 5;
+}
+
+/* Slowest Operators Panel */
+.slowest-panel {
+  position: absolute;
+  top: 140px;
+  right: 24px;
+  width: 340px;
+  max-height: calc(100% - 180px);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 100;
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+  overflow: hidden;
+}
+
+.slowest-panel.collapsed {
+  transform: translateX(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.slowest-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.slowest-panel-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.slowest-panel-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.slowest-panel-content {
+  overflow-y: auto;
+  max-height: calc(100vh - 360px);
+  padding: 4px 0;
+}
+
+/* Compact operator row style - matches Overview tab */
+.slowest-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 44px 60px 52px;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  gap: 8px;
+  border-radius: 4px;
+  margin: 1px 6px;
+  transition: background 0.15s;
+}
+
+.slowest-row:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Rank number - simple text */
+.slowest-rank {
+  font-weight: 600;
+  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.slowest-rank.top1 {
+  color: var(--danger);
+}
+
+.slowest-rank.top5 {
+  color: var(--warning);
+}
+
+.slowest-rank.other {
+  color: var(--text-secondary);
+}
+
+/* Operator name */
+.slowest-name {
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slowest-row.top1-row .slowest-name {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.slowest-row.top5-row .slowest-name {
+  color: var(--warning);
+  font-weight: 500;
+}
+
+/* Inline time bar - matches Overview operator rows */
+.slowest-time-bar {
+  width: 60px;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.slowest-time-bar-fill {
+  height: 100%;
+  background: var(--text-secondary);
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+
+.slowest-row.top1-row .slowest-time-bar-fill {
+  background: var(--danger);
+}
+
+.slowest-row.top5-row .slowest-time-bar-fill {
+  background: var(--warning);
+}
+
+/* Node ID */
+.slowest-node-id {
+  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Time value */
+.slowest-time {
+  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+  white-space: nowrap;
+}
+

@@ -38,6 +38,10 @@ let currentGraph = null;      // Store graph for filtering
 let currentRootId = null;     // Store root for traversal
 let currentParentMap = null;  // Cached parent map for upstream traversal
 
+// Slowest operators panel state
+let slowestPanelVisible = false;
+let rankedOperators = [];
+
 // DOM elements
 let planDropZone, planFileInput, planContainer, planCanvas;
 
@@ -611,6 +615,12 @@ function setupViewport() {
   window.addEventListener('keyup', handleKeyUp);
   minimap?.addEventListener('click', handleMinimapClick);
 
+  // Slowest panel toggle buttons
+  const toggleSlowestBtn = document.getElementById('toggleSlowestPanel');
+  const panelCloseBtn = document.getElementById('slowestPanelToggle');
+  toggleSlowestBtn?.addEventListener('click', toggleSlowestPanel);
+  panelCloseBtn?.addEventListener('click', toggleSlowestPanel);
+
   // Store cleanup function
   planCanvas._viewportCleanup = () => {
     planCanvas.removeEventListener('wheel', handleWheel);
@@ -622,6 +632,8 @@ function setupViewport() {
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
     minimap?.removeEventListener('click', handleMinimapClick);
+    toggleSlowestBtn?.removeEventListener('click', toggleSlowestPanel);
+    panelCloseBtn?.removeEventListener('click', toggleSlowestPanel);
   };
 }
 
@@ -823,6 +835,11 @@ function renderFromTopology(topology, metricsMap) {
 
   const layout = calculateTreeLayout(root, graph);
   renderTreeWithSVG(layout, graph);
+
+  // Calculate and display slowest operators
+  rankedOperators = calculateOperatorRankings(graph);
+  renderSlowestPanel(rankedOperators);
+  applySlowestHighlights(rankedOperators);
 
   planDropZone.style.display = 'none';
   planContainer.style.display = 'block';
@@ -1119,6 +1136,121 @@ function getNodeTotalTime(metricsData) {
 
   return totalUs > 0 ? formatMicroseconds(totalUs) : null;
 }
+
+/**
+ * Calculate operator rankings by total time
+ * Returns array of operators sorted by time descending
+ */
+function calculateOperatorRankings(graph) {
+  const operators = [];
+
+  for (const [id, node] of Object.entries(graph)) {
+    if (!node.metrics) continue;
+
+    const timeStr = getNodeTotalTime(node.metrics);
+    if (!timeStr) continue;
+
+    const timeMicros = parseTimeToMicroseconds(timeStr);
+
+    if (timeMicros > 0) {
+      operators.push({
+        id: id,
+        name: node.name,
+        timeStr: timeStr,
+        timeMicros: timeMicros
+      });
+    }
+  }
+
+  // Sort descending by time
+  operators.sort((a, b) => b.timeMicros - a.timeMicros);
+  return operators;
+}
+
+/**
+ * Render the slowest operators panel content
+ */
+function renderSlowestPanel(operators) {
+  const content = document.getElementById('slowestPanelContent');
+  if (!content) return;
+
+  if (operators.length === 0) {
+    content.innerHTML = '<div style="padding: 16px; color: var(--text-secondary); font-size: 0.7rem;">No timing data available</div>';
+    return;
+  }
+
+  // Show top 10
+  const top10 = operators.slice(0, 10);
+  const maxTime = top10[0]?.timeMicros || 1;
+
+  content.innerHTML = top10.map((op, idx) => {
+    const rank = idx + 1;
+    const rankClass = rank === 1 ? 'top1' : rank <= 5 ? 'top5' : 'other';
+    const rowClass = rank === 1 ? 'top1-row' : rank <= 5 ? 'top5-row' : '';
+    const barWidth = Math.round((op.timeMicros / maxTime) * 100);
+
+    // Shorten operator names for display
+    const shortName = op.name
+      .replace(/_/g, ' ')
+      .replace(/CONNECTOR /gi, '')
+      .replace(/HASH /gi, '');
+
+    return `
+      <div class="slowest-row ${rowClass}" data-node-id="${op.id}">
+        <span class="slowest-rank ${rankClass}">#${rank}</span>
+        <span class="slowest-name" title="${op.name}">${shortName}</span>
+        <span class="slowest-node-id">${op.id}</span>
+        <div class="slowest-time-bar"><div class="slowest-time-bar-fill" style="width: ${barWidth}%"></div></div>
+        <span class="slowest-time">${op.timeStr}</span>
+      </div>
+    `;
+  }).join('');
+
+  // Add click handlers to navigate to nodes
+  content.querySelectorAll('.slowest-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const nodeId = row.dataset.nodeId;
+      zoomToNode(nodeId);
+    });
+  });
+}
+
+/**
+ * Apply highlight classes to the slowest nodes in the plan
+ */
+function applySlowestHighlights(operators) {
+  // Clear existing highlights
+  document.querySelectorAll('.plan-node.slowest-top1, .plan-node.slowest-top5')
+    .forEach(el => el.classList.remove('slowest-top1', 'slowest-top5'));
+
+  // Apply new highlights to top 5
+  operators.slice(0, 5).forEach((op, idx) => {
+    const nodeEl = document.getElementById(`node-${op.id}`);
+    if (nodeEl) {
+      nodeEl.classList.add(idx === 0 ? 'slowest-top1' : 'slowest-top5');
+    }
+  });
+}
+
+/**
+ * Toggle the slowest operators panel visibility
+ */
+function toggleSlowestPanel() {
+  const panel = document.getElementById('slowestPanel');
+  if (!panel) return;
+
+  slowestPanelVisible = !slowestPanelVisible;
+  panel.classList.toggle('collapsed', !slowestPanelVisible);
+
+  // Update toolbar button state
+  const toggleBtn = document.getElementById('toggleSlowestPanel');
+  if (toggleBtn) {
+    toggleBtn.classList.toggle('active', slowestPanelVisible);
+  }
+}
+
+// Expose toggle function globally for the panel close button
+window.toggleSlowestPanel = toggleSlowestPanel;
 
 /**
  * Get row count (PullRowNum) from a node's metrics

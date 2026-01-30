@@ -1948,7 +1948,7 @@ td.skew-danger {
   border-radius: 8px;
   padding: 1.5rem;
   overflow: auto;
-  max-height: calc(100vh - 250px);
+  max-height: calc(100vh - 380px);
 }
 
 .raw-content pre {

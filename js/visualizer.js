@@ -1266,17 +1266,39 @@ window.toggleSlowestPanel = toggleSlowestPanel;
 /**
  * Get row count (PullRowNum) from a node's metrics
  * Returns formatted string or null if not available
+ * Prioritizes SOURCE operators since SINK operators typically have PullRowNum=0
  */
 function getNodeRowCount(node) {
   if (!node || !node.metrics || !node.metrics.instances) return null;
-  
-  // Find an instance with PullRowNum
+
+  // Priority 1: Find a SOURCE operator with non-zero PullRowNum
+  // (ANALYTIC_SOURCE, EXCHANGE_SOURCE, etc. are where rows are pulled from)
+  for (const inst of node.metrics.instances) {
+    const opName = inst.operatorName?.toUpperCase() || '';
+    if (opName.includes('SOURCE')) {
+      const common = inst.metrics?.CommonMetrics;
+      if (common && common.PullRowNum && common.PullRowNum !== '0') {
+        return formatRowCount(common.PullRowNum);
+      }
+    }
+  }
+
+  // Priority 2: Find any operator with non-zero PullRowNum
+  for (const inst of node.metrics.instances) {
+    const common = inst.metrics?.CommonMetrics;
+    if (common && common.PullRowNum && common.PullRowNum !== '0') {
+      return formatRowCount(common.PullRowNum);
+    }
+  }
+
+  // Priority 3: Return first PullRowNum found (even if "0")
   for (const inst of node.metrics.instances) {
     const common = inst.metrics?.CommonMetrics;
     if (common && common.PullRowNum) {
       return formatRowCount(common.PullRowNum);
     }
   }
+
   return null;
 }
 
@@ -1306,31 +1328,56 @@ function formatRowCount(value) {
 }
 
 /**
+ * Parse PullRowNum string to numeric value
+ * Handles formats like "207.615K (207615)" or plain numbers
+ */
+function parsePullRowNum(rawValue) {
+  if (!rawValue || rawValue === '0') return 0;
+
+  const str = String(rawValue);
+  // Try to extract number from parentheses first (e.g., "207.615K (207615)")
+  const parenMatch = str.match(/\((\d+)\)/);
+  if (parenMatch) return parseInt(parenMatch[1], 10);
+
+  // Otherwise parse the value directly
+  const num = parseFloat(str.replace(/[,\s]/g, ''));
+  if (isNaN(num)) return 0;
+
+  // Handle K/M/B suffixes
+  if (str.toUpperCase().includes('B')) return num * 1000000000;
+  if (str.toUpperCase().includes('M')) return num * 1000000;
+  if (str.toUpperCase().includes('K')) return num * 1000;
+  return num;
+}
+
+/**
  * Get raw numeric row count from a node
+ * Prioritizes SOURCE operators since SINK operators typically have PullRowNum=0
  */
 function getNodeRowCountNumeric(node) {
   if (!node || !node.metrics || !node.metrics.instances) return 0;
 
+  // Priority 1: Find a SOURCE operator with non-zero PullRowNum
   for (const inst of node.metrics.instances) {
-    const common = inst.metrics?.CommonMetrics;
-    if (common && common.PullRowNum) {
-      // Parse the raw value - handle "207.615K (207615)" format
-      const rawValue = String(common.PullRowNum);
-      // Try to extract number from parentheses first
-      const parenMatch = rawValue.match(/\((\d+)\)/);
-      if (parenMatch) return parseInt(parenMatch[1], 10);
-
-      // Otherwise parse the value directly
-      const num = parseFloat(rawValue.replace(/[,\s]/g, ''));
-      if (!isNaN(num)) {
-        // Handle K/M/B suffixes
-        if (rawValue.toUpperCase().includes('B')) return num * 1000000000;
-        if (rawValue.toUpperCase().includes('M')) return num * 1000000;
-        if (rawValue.toUpperCase().includes('K')) return num * 1000;
-        return num;
+    const opName = inst.operatorName?.toUpperCase() || '';
+    if (opName.includes('SOURCE')) {
+      const common = inst.metrics?.CommonMetrics;
+      if (common && common.PullRowNum) {
+        const value = parsePullRowNum(common.PullRowNum);
+        if (value > 0) return value;
       }
     }
   }
+
+  // Priority 2: Find any operator with non-zero PullRowNum
+  for (const inst of node.metrics.instances) {
+    const common = inst.metrics?.CommonMetrics;
+    if (common && common.PullRowNum) {
+      const value = parsePullRowNum(common.PullRowNum);
+      if (value > 0) return value;
+    }
+  }
+
   return 0;
 }
 

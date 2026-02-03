@@ -4,7 +4,7 @@
 
 A client-side web application for analyzing StarRocks query profiles. Upload JSON query profile exports and get visual analysis of scan operators, join operators, and query execution plans.
 
-**[Live Demo](https://gomezgoes-con.github.io/northstar/)**
+**[Live Demo](https://fresha.github.io/northstar/)**
 
 ## Features
 

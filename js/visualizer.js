@@ -1504,9 +1504,9 @@ function hasExpandableMetrics(node) {
 // ========================================
 
 /**
- * Parse a single selector (node or type filter)
- * @param {string} part - A single selector like "node=5" or "type=scan"
- * @returns {Object|null} - { type: 'node'|'type', ... } or null if invalid
+ * Parse a single selector (node, type, or table filter)
+ * @param {string} part - A single selector like "node=5", "type=scan", or "table=orders"
+ * @returns {Object|null} - { selectorType: 'node'|'type'|'table', ... } or null if invalid
  */
 function parseSelector(part) {
   // Type filter: type=scan, type=join, type=exchange
@@ -1516,6 +1516,16 @@ function parseSelector(part) {
     const type = typeMatch[1].toLowerCase();
     if (validTypes.includes(type)) {
       return { selectorType: 'type', typeFilter: type };
+    }
+    return null;
+  }
+
+  // Table filter: table=orders, table=customer (case-insensitive exact match)
+  const tableMatch = part.match(/^table=(.+)$/i);
+  if (tableMatch) {
+    const tableName = tableMatch[1].trim();
+    if (tableName) {
+      return { selectorType: 'table', tableFilter: tableName.toLowerCase() };
     }
     return null;
   }
@@ -1547,6 +1557,7 @@ function parseSelector(part) {
  *   type=scan     - all scan operators
  *   type=join     - all join operators
  *   type=exchange - all exchange operators
+ *   table=name    - scan operators matching table name (case-insensitive exact match)
  *   --hide        - hide non-matching (default: dim)
  *
  * Operators:
@@ -1557,6 +1568,8 @@ function parseSelector(part) {
  *   node=5+ & type=scan     - descendants of 5 that are scans
  *   node=5, type=join       - node 5 OR any join
  *   node=5+ & type=scan, type=join  - (descendants of 5 that are scans) OR any join
+ *   table=orders            - all scans on the "orders" table
+ *   table=customer & node=5+ - scans matching "customer" that are descendants of node 5
  *
  * @param {string} query - The filter query
  * @returns {Object} - { orGroups: [...], hideMode: boolean }
@@ -1586,7 +1599,8 @@ function parseFilterQuery(query) {
 
     const group = {
       nodeSelectors: [],
-      typeFilters: []
+      typeFilters: [],
+      tableFilters: []
     };
 
     for (const part of andParts) {
@@ -1596,12 +1610,14 @@ function parseFilterQuery(query) {
           group.nodeSelectors.push(selector);
         } else if (selector.selectorType === 'type') {
           group.typeFilters.push(selector.typeFilter);
+        } else if (selector.selectorType === 'table') {
+          group.tableFilters.push(selector.tableFilter);
         }
       }
     }
 
     // Only add non-empty groups
-    if (group.nodeSelectors.length > 0 || group.typeFilters.length > 0) {
+    if (group.nodeSelectors.length > 0 || group.typeFilters.length > 0 || group.tableFilters.length > 0) {
       orGroups.push(group);
     }
   }
@@ -1722,6 +1738,33 @@ function getNodesForType(typeFilter) {
 }
 
 /**
+ * Get nodes matching a table filter (scan operators only)
+ * @param {string} tableFilter - Table name to match (case-insensitive exact match)
+ * @returns {Set<number>} - Set of matching node IDs
+ */
+function getNodesForTable(tableFilter) {
+  const nodes = new Set();
+  const searchTerm = tableFilter.toLowerCase();
+
+  for (const [id, node] of Object.entries(currentGraph)) {
+    // Only scan operators have table names
+    if (!isScanOperator(node.name)) continue;
+    if (!node.metrics) continue;
+
+    const scanMetrics = getScanMetrics(node.metrics);
+    if (!scanMetrics || !scanMetrics.table || scanMetrics.table === 'N/A') continue;
+
+    // Case-insensitive exact match
+    const tableName = scanMetrics.table.toLowerCase();
+    if (tableName === searchTerm) {
+      nodes.add(parseInt(id));
+    }
+  }
+
+  return nodes;
+}
+
+/**
  * Compute intersection of two sets
  */
 function setIntersection(setA, setB) {
@@ -1790,6 +1833,16 @@ function applyFilter(query) {
         groupNodes = typeNodes;
       } else {
         groupNodes = setIntersection(groupNodes, typeNodes);
+      }
+    }
+
+    // Process table filters within the AND group
+    for (const tableFilter of group.tableFilters) {
+      const tableNodes = getNodesForTable(tableFilter);
+      if (groupNodes === null) {
+        groupNodes = tableNodes;
+      } else {
+        groupNodes = setIntersection(groupNodes, tableNodes);
       }
     }
 
@@ -1931,6 +1984,12 @@ function renderFilterPills(spec) {
     // Add type filter pills
     for (const type of group.typeFilters) {
       const label = `type=${type}`;
+      groupPills.push(`<span class="filter-pill" data-selector="${label}"><span class="pill-text">${label}</span><button class="pill-remove" type="button">×</button></span>`);
+    }
+
+    // Add table filter pills
+    for (const table of group.tableFilters) {
+      const label = `table=${table}`;
       groupPills.push(`<span class="filter-pill" data-selector="${label}"><span class="pill-text">${label}</span><button class="pill-remove" type="button">×</button></span>`);
     }
 

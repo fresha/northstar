@@ -1536,15 +1536,17 @@ td.skew-danger {
 /* Filter summary box - shows count and total time for filtered nodes */
 .filter-summary {
   position: absolute;
-  top: 80px;
-  left: 540px;  /* Right of search bar */
+  top: 208px;  /* Below minimap (80px + 120px + 8px gap) */
+  left: 24px;
+  width: 180px;  /* Match minimap width */
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 8px 10px;
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   z-index: 300;

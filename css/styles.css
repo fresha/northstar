@@ -1036,7 +1036,7 @@ td.skew-danger {
 
 .compare-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1rem;
 }
 
@@ -1046,11 +1046,48 @@ td.skew-danger {
   grid-template-columns: repeat(3, 1fr);
 }
 
+@media (max-width: 900px) {
+  #compareTimeCards,
+  #compareJoinCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .compare-cards-grid,
+  #compareTimeCards,
+  #compareJoinCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card Container with state-based left border */
 .compare-card {
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.compare-card.improved {
+  border-left: 3px solid var(--success);
+}
+
+.compare-card.regressed {
+  border-left: 3px solid var(--danger);
+}
+
+.compare-card.neutral {
+  border-left: 3px solid var(--text-secondary);
+}
+
+/* Card Header - Label + Badge */
+.compare-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
 }
 
 .compare-card-label {
@@ -1058,66 +1095,113 @@ td.skew-danger {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
-  margin-bottom: 0.75rem;
+  font-weight: 500;
 }
 
-.compare-card-values {
+/* Prominent Change Badge */
+.compare-change-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.compare-change-badge.improved {
+  background: rgba(163, 190, 140, 0.2);
+  color: var(--success);
+}
+
+.compare-change-badge.regressed {
+  background: rgba(191, 97, 106, 0.2);
+  color: var(--danger);
+}
+
+.compare-change-badge.neutral {
+  background: rgba(76, 86, 106, 0.3);
+  color: var(--text-secondary);
+}
+
+.change-arrow {
+  font-size: 0.85rem;
+}
+
+/* Bullet Chart Bar */
+.compare-bullet-bar {
+  margin-bottom: 0.75rem;
+  position: relative;
+  height: 12px;
+}
+
+.bullet-bar-baseline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--warning);
+  opacity: 0.3;
+  border-radius: 3px;
+}
+
+.bullet-bar-optimized {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  height: 8px;
+  border-radius: 2px;
+  transition: width 0.4s ease-out;
+}
+
+.compare-card.improved .bullet-bar-optimized {
+  background: var(--success);
+}
+
+.compare-card.regressed .bullet-bar-optimized {
+  background: var(--danger);
+}
+
+.compare-card.neutral .bullet-bar-optimized {
+  background: var(--text-secondary);
+}
+
+/* Values Row */
+.compare-values {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.compare-arrow {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  opacity: 0.6;
 }
 
 .compare-value {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
 }
 
-.compare-value-label {
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.compare-value-num {
-  font-size: 1.1rem;
+.compare-value .value-num {
+  font-size: 0.85rem;
   font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.compare-value-num.baseline { color: var(--warning); }
-.compare-value-num.optimized { color: var(--success); }
-
-.compare-change {
-  text-align: right;
+.compare-value.baseline .value-num {
+  color: var(--warning);
 }
 
-.compare-change-pct {
-  font-size: 1rem;
-  font-weight: 700;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-}
-
-.compare-change-pct.improved {
+.compare-value.optimized .value-num {
   color: var(--success);
-  background: rgba(63, 185, 80, 0.15);
 }
 
-.compare-change-pct.regressed {
+.compare-card.regressed .compare-value.optimized .value-num {
   color: var(--danger);
-  background: rgba(248, 81, 73, 0.15);
-}
-
-.compare-change-pct.neutral {
-  color: var(--text-secondary);
-  background: rgba(139, 148, 158, 0.15);
-}
-
-.compare-change-label {
-  font-size: 0.55rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
 }
 
 /* ========================================

@@ -84,16 +84,25 @@ function renderLoadedDropZone(dropZone, type, summary, displayText) {
  * @param {number} baselineNum - Baseline numeric value
  * @param {number} optimizedNum - Optimized numeric value
  * @param {boolean} lowerIsBetter - Whether lower values are better
- * @returns {Object} { change, improved, changeClass, changeSymbol, changeLabel }
+ * @returns {Object} { change, improved, changeClass, changeSymbol, changeArrow }
  */
 function calculateChange(baselineNum, optimizedNum, lowerIsBetter) {
   const change = baselineNum > 0 ? ((optimizedNum - baselineNum) / baselineNum) * 100 : 0;
   const improved = lowerIsBetter ? change < 0 : change > 0;
   const changeClass = Math.abs(change) < 1 ? 'neutral' : (improved ? 'improved' : 'regressed');
   const changeSymbol = change > 0 ? '+' : '';
-  const changeLabel = improved ? '✓ Better' : (Math.abs(change) < 1 ? '≈ Same' : '⚠ Worse');
 
-  return { change, improved, changeClass, changeSymbol, changeLabel };
+  // Arrow direction: down for decrease, up for increase, approx for neutral
+  let changeArrow;
+  if (Math.abs(change) < 1) {
+    changeArrow = '\u2248'; // ≈
+  } else if (change < 0) {
+    changeArrow = '\u2193'; // ↓
+  } else {
+    changeArrow = '\u2191'; // ↑
+  }
+
+  return { change, improved, changeClass, changeSymbol, changeArrow };
 }
 
 /**
@@ -347,23 +356,33 @@ function renderCompareCards(containerId, metrics, baselineExec, optimizedExec, l
     const baselineNum = parseNumericValue(baselineVal);
     const optimizedNum = parseNumericValue(optimizedVal);
 
-    const { change, changeClass, changeSymbol, changeLabel } = calculateChange(baselineNum, optimizedNum, lowerIsBetter);
+    const { change, changeClass, changeSymbol, changeArrow } = calculateChange(baselineNum, optimizedNum, lowerIsBetter);
+
+    // Bullet chart: scale both bars relative to the larger value
+    const maxVal = Math.max(baselineNum, optimizedNum);
+    const baselinePct = maxVal > 0 ? (baselineNum / maxVal) * 100 : 0;
+    const optimizedPct = maxVal > 0 ? (optimizedNum / maxVal) * 100 : 0;
 
     return `
-      <div class="compare-card">
-        <div class="compare-card-label">${metric.label}</div>
-        <div class="compare-card-values">
-          <div class="compare-value">
-            <div class="compare-value-label">Baseline</div>
-            <div class="compare-value-num baseline">${baselineVal}</div>
+      <div class="compare-card ${changeClass}">
+        <div class="compare-card-header">
+          <div class="compare-card-label">${metric.label}</div>
+          <div class="compare-change-badge ${changeClass}">
+            <span class="change-arrow">${changeArrow}</span>
+            <span class="change-pct">${changeSymbol}${change.toFixed(1)}%</span>
           </div>
-          <div class="compare-value">
-            <div class="compare-value-label">Optimized</div>
-            <div class="compare-value-num optimized">${optimizedVal}</div>
+        </div>
+        <div class="compare-bullet-bar">
+          <div class="bullet-bar-baseline" style="width: ${baselinePct}%"></div>
+          <div class="bullet-bar-optimized" style="width: ${optimizedPct}%"></div>
+        </div>
+        <div class="compare-values">
+          <div class="compare-value baseline">
+            <span class="value-num">${baselineVal}</span>
           </div>
-          <div class="compare-change">
-            <div class="compare-change-pct ${changeClass}">${changeSymbol}${change.toFixed(1)}%</div>
-            <div class="compare-change-label">${changeLabel}</div>
+          <span class="compare-arrow">\u2192</span>
+          <div class="compare-value optimized">
+            <span class="value-num">${optimizedVal}</span>
           </div>
         </div>
       </div>
@@ -389,23 +408,33 @@ function generateCompareCardsHTML(cards) {
     const baselineDisplay = formatValue(baselineNum);
     const optimizedDisplay = formatValue(optimizedNum);
 
-    const { change, changeClass, changeSymbol, changeLabel } = calculateChange(baselineNum, optimizedNum, card.lowerIsBetter);
+    const { change, changeClass, changeSymbol, changeArrow } = calculateChange(baselineNum, optimizedNum, card.lowerIsBetter);
+
+    // Bullet chart: scale both bars relative to the larger value
+    const maxVal = Math.max(baselineNum, optimizedNum);
+    const baselinePct = maxVal > 0 ? (baselineNum / maxVal) * 100 : 0;
+    const optimizedPct = maxVal > 0 ? (optimizedNum / maxVal) * 100 : 0;
 
     return `
-      <div class="compare-card">
-        <div class="compare-card-label">${card.label}</div>
-        <div class="compare-card-values">
-          <div class="compare-value">
-            <div class="compare-value-label">Baseline</div>
-            <div class="compare-value-num baseline">${baselineDisplay}</div>
+      <div class="compare-card ${changeClass}">
+        <div class="compare-card-header">
+          <div class="compare-card-label">${card.label}</div>
+          <div class="compare-change-badge ${changeClass}">
+            <span class="change-arrow">${changeArrow}</span>
+            <span class="change-pct">${changeSymbol}${change.toFixed(1)}%</span>
           </div>
-          <div class="compare-value">
-            <div class="compare-value-label">Optimized</div>
-            <div class="compare-value-num optimized">${optimizedDisplay}</div>
+        </div>
+        <div class="compare-bullet-bar">
+          <div class="bullet-bar-baseline" style="width: ${baselinePct}%"></div>
+          <div class="bullet-bar-optimized" style="width: ${optimizedPct}%"></div>
+        </div>
+        <div class="compare-values">
+          <div class="compare-value baseline">
+            <span class="value-num">${baselineDisplay}</span>
           </div>
-          <div class="compare-change">
-            <div class="compare-change-pct ${changeClass}">${changeSymbol}${change.toFixed(1)}%</div>
-            <div class="compare-change-label">${changeLabel}</div>
+          <span class="compare-arrow">\u2192</span>
+          <div class="compare-value optimized">
+            <span class="value-num">${optimizedDisplay}</span>
           </div>
         </div>
       </div>

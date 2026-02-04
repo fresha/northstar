@@ -1040,7 +1040,8 @@ td.skew-danger {
   gap: 1rem;
 }
 
-/* Join comparison: 3 cards per row for better readability */
+/* Time and Join comparison: 3 cards per row for better readability */
+#compareTimeCards,
 #compareJoinCards {
   grid-template-columns: repeat(3, 1fr);
 }

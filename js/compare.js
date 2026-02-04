@@ -7,6 +7,7 @@ import { findConnectorScans } from './scanParser.js';
 import { findHashJoins, combineJoinOperators, calculateJoinStats, sumOperatorTimesByPlanNodeId, extractJoinMetrics } from './joinParser.js';
 import { trackEvent } from './analytics.js';
 import { loadFromUrl, extractPasteId } from './urlLoader.js';
+import { extractFragments, analyzeFragments } from './overviewParser.js';
 
 // Compare type labels configuration
 const COMPARE_LABELS = {
@@ -54,7 +55,11 @@ function extractCompareData(json) {
 
   const joinStats = calculateJoinStats(joinMetrics);
 
-  return { summary, execution, scans, joinMetrics, joinStats };
+  // Compute total active time from fragments/pipelines
+  const fragments = extractFragments(execution);
+  const { totalActiveTime } = analyzeFragments(fragments, execution);
+
+  return { summary, execution, scans, joinMetrics, joinStats, totalActiveTime };
 }
 
 /**
@@ -161,7 +166,7 @@ function loadCompareFile(file, type, dropZone) {
       }
 
       // Extract data using helper
-      const { summary, execution, scans, joinMetrics, joinStats } = extractCompareData(json);
+      const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime } = extractCompareData(json);
 
       compareData[type] = {
         summary,
@@ -169,6 +174,7 @@ function loadCompareFile(file, type, dropZone) {
         scans,
         joins: joinMetrics,
         joinStats,
+        totalActiveTime,
         filename: file.name
       };
 
@@ -228,12 +234,25 @@ function renderComparison() {
 
   // Time comparison
   const timeMetrics = [
+    { key: 'QueryExecutionWallTime', label: 'Wall Time' },
     { key: 'QueryCumulativeCpuTime', label: 'CPU Time' },
     { key: 'QueryCumulativeScanTime', label: 'Scan Time' },
     { key: 'QueryCumulativeOperatorTime', label: 'Operator Time' },
     { key: 'QueryCumulativeNetworkTime', label: 'Network Time' },
   ];
   renderCompareCards('compareTimeCards', timeMetrics, baseline.execution, optimized.execution, true);
+
+  // Active time comparison (computed from fragment/pipeline data)
+  const activeTimeCards = [
+    {
+      label: 'Active Time',
+      baseline: baseline.totalActiveTime,
+      optimized: optimized.totalActiveTime,
+      format: 'time',
+      lowerIsBetter: true
+    },
+  ];
+  document.getElementById('compareTimeCards').innerHTML += generateCompareCardsHTML(activeTimeCards);
 
   // Scan metrics comparison
   const scanCards = [
@@ -518,7 +537,7 @@ async function loadCompareFromUrl(url, type, dropZone) {
     }
 
     // Extract data using helper
-    const { summary, execution, scans, joinMetrics, joinStats } = extractCompareData(json);
+    const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime } = extractCompareData(json);
 
     compareData[type] = {
       summary,
@@ -526,6 +545,7 @@ async function loadCompareFromUrl(url, type, dropZone) {
       scans,
       joins: joinMetrics,
       joinStats,
+      totalActiveTime,
       filename: 'From URL'
     };
 
@@ -622,7 +642,7 @@ function processCompareJson(json, type, displayName) {
   }
 
   // Extract data using helper
-  const { summary, execution, scans, joinMetrics, joinStats } = extractCompareData(json);
+  const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime } = extractCompareData(json);
 
   compareData[type] = {
     summary,
@@ -630,6 +650,7 @@ function processCompareJson(json, type, displayName) {
     scans,
     joins: joinMetrics,
     joinStats,
+    totalActiveTime,
     filename: displayName
   };
 

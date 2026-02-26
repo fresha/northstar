@@ -61,12 +61,24 @@
           <span class="load-label">Load from URL</span>
           <span class="load-desc">GitHub Gist or Paste URL</span>
         </button>
+        <button class="load-option-btn" id="pasteJsonBtn">
+          <span class="load-icon">📋</span>
+          <span class="load-label">Paste JSON</span>
+          <span class="load-desc">Paste raw JSON content</span>
+        </button>
       </div>
       <div class="url-input-container" id="urlInputContainer" style="display: none;">
         <input type="text" id="urlInput" placeholder="https://gist.github.com/... or https://dpaste.com/...">
         <div class="url-actions">
           <button class="btn-cancel" id="btnCancelUrl">Cancel</button>
           <button class="btn-load" id="btnLoadUrl">Load</button>
+        </div>
+      </div>
+      <div class="json-input-container" id="jsonInputContainer" style="display: none;">
+        <textarea id="jsonTextarea" placeholder="Paste your query profile JSON here..."></textarea>
+        <div class="url-actions">
+          <button class="btn-cancel" id="btnCancelJson">Cancel</button>
+          <button class="btn-load" id="btnParseJson">Parse</button>
         </div>
       </div>
       <button class="modal-close" id="closeModal">×</button>
@@ -222,7 +234,7 @@
         <div class="table-header">
           <h2>🔍 CONNECTOR_SCAN Operators</h2>
         </div>
-        <div class="table-container">
+        <div class="table-container" tabindex="0">
           <table id="scanTable">
             <thead id="tableHead">
               <!-- Populated by JavaScript: two rows (group headers + column headers) -->
@@ -281,7 +293,7 @@
           <div class="table-header">
             <h2>🔗 HASH_JOIN Operators</h2>
           </div>
-          <div class="table-container">
+          <div class="table-container" tabindex="0">
             <table id="joinTable">
               <thead id="joinTableHead">
                 <!-- Populated by JavaScript: group headers + column headers -->

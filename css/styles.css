@@ -519,6 +519,11 @@ main {
 
 .table-container {
   overflow-x: auto;
+  outline: none;
+}
+
+.table-container:focus {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 table {
@@ -2264,7 +2269,7 @@ td.skew-danger {
 
 .load-options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1rem;
   margin-bottom: 1rem;
 }
@@ -2320,6 +2325,29 @@ td.skew-danger {
 }
 
 .url-input-container input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.json-input-container {
+  margin-top: 1rem;
+}
+
+.json-input-container textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  resize: vertical;
+  min-height: 150px;
+}
+
+.json-input-container textarea:focus {
   outline: none;
   border-color: var(--accent);
 }

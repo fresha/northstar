@@ -302,6 +302,11 @@ const urlInputContainer = document.getElementById('urlInputContainer');
 const urlInput = document.getElementById('urlInput');
 const btnLoadUrl = document.getElementById('btnLoadUrl');
 const btnCancelUrl = document.getElementById('btnCancelUrl');
+const pasteJsonBtn = document.getElementById('pasteJsonBtn');
+const jsonInputContainer = document.getElementById('jsonInputContainer');
+const jsonTextarea = document.getElementById('jsonTextarea');
+const btnParseJson = document.getElementById('btnParseJson');
+const btnCancelJson = document.getElementById('btnCancelJson');
 
 // Modal elements - Share Query
 const shareModal = document.getElementById('shareModal');
@@ -337,6 +342,8 @@ function closeLoadModal() {
   modalBackdrop.style.display = 'none';
   urlInputContainer.style.display = 'none';
   urlInput.value = '';
+  jsonInputContainer.style.display = 'none';
+  jsonTextarea.value = '';
   // Reset to show load options
   document.querySelector('.load-options').style.display = 'grid';
 }
@@ -379,6 +386,42 @@ btnCancelUrl.addEventListener('click', () => {
   document.querySelector('.load-options').style.display = 'grid';
   urlInputContainer.style.display = 'none';
   urlInput.value = '';
+});
+
+// Paste JSON option
+pasteJsonBtn.addEventListener('click', () => {
+  document.querySelector('.load-options').style.display = 'none';
+  jsonInputContainer.style.display = 'block';
+  jsonTextarea.focus();
+});
+
+// Cancel JSON paste
+btnCancelJson.addEventListener('click', () => {
+  document.querySelector('.load-options').style.display = 'grid';
+  jsonInputContainer.style.display = 'none';
+  jsonTextarea.value = '';
+});
+
+// Parse JSON button
+btnParseJson.addEventListener('click', () => {
+  const text = jsonTextarea.value.trim();
+  if (!text) return;
+
+  try {
+    const json = JSON.parse(text);
+
+    if (!json.Query) {
+      alert('Invalid query profile format - missing "Query" field');
+      return;
+    }
+
+    setQuery(json);
+    trackEvent('upload-paste');
+    closeLoadModal();
+
+  } catch (error) {
+    alert('Invalid JSON: ' + error.message);
+  }
 });
 
 // Load URL button
@@ -709,6 +752,17 @@ initRawJson();
 
 // Initialize global tooltip system
 initTooltips();
+
+// Keyboard horizontal scroll for table containers
+document.querySelectorAll('.table-container[tabindex]').forEach(container => {
+  container.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const scrollAmount = e.key === 'ArrowLeft' ? -200 : 200;
+      container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  });
+});
 
 // Initialize plan visualization (sets up listener for global state)
 setupPlanDropZone();

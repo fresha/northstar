@@ -19,11 +19,11 @@ export function renderOverview(summary, analysis, dropZone, dashboard) {
   // 2. Render Planning vs Execution bar (if planner data available)
   renderPlanningBar(analysis);
 
-  // 3. Render Pipeline Timeline
-  renderPipelineTimeline(analysis);
-
-  // 4. Render Quick Stats
+  // 3. Render Quick Stats (above pipeline timeline)
   renderQuickStats(analysis);
+
+  // 4. Render Pipeline Timeline
+  renderPipelineTimeline(analysis);
 }
 
 /**
@@ -50,7 +50,7 @@ function renderQuerySummary(summary, analysis) {
 }
 
 /**
- * Render Planning vs Execution bar
+ * Render Planning vs Execution bar with collapsible planner breakdown
  */
 function renderPlanningBar(analysis) {
   const container = document.getElementById('planningBarContainer');
@@ -64,8 +64,9 @@ function renderPlanningBar(analysis) {
 
   container.style.display = 'block';
 
-  const planningTime = planner.total;
-  const executionTime = analysis.queryWallTime * 1000; // Convert to ms
+  // Planning time = sum of top-level phases (Parser + Total + Pending + Prepare + Deploy)
+  const planningTime = planner.parser + planner.total + planner.pending + planner.prepare + planner.deploy;
+  const executionTime = analysis.queryWallTime;
   const totalTime = planningTime + executionTime;
 
   if (totalTime === 0) {
@@ -76,25 +77,102 @@ function renderPlanningBar(analysis) {
   const planningPct = (planningTime / totalTime) * 100;
   const executionPct = (executionTime / totalTime) * 100;
 
-  // Format times for display
-  const formatMs = (ms) => {
-    if (ms >= 1000) return (ms / 1000).toFixed(2) + 's';
-    return ms.toFixed(0) + 'ms';
-  };
-
   // Determine if planning time is concerning (>30% of total)
   const planningWarning = planningPct > 30;
+
+  // Build planner breakdown
+  const breakdownHtml = buildPlannerBreakdown(planner);
 
   container.innerHTML = `
     <div class="planning-bar-wrapper">
       <div class="planning-bar-labels">
-        <span class="planning-label${planningWarning ? ' warning' : ''}">Planning: ${formatMs(planningTime)} (${planningPct.toFixed(0)}%)</span>
-        <span class="execution-label">Execution: ${formatMs(executionTime)} (${executionPct.toFixed(0)}%)</span>
+        <span class="planning-label${planningWarning ? ' warning' : ''}">Planning: ${formatTime(planningTime)} (${planningPct.toFixed(0)}%)</span>
+        <span class="execution-label">Execution: ${formatTime(executionTime)} (${executionPct.toFixed(0)}%)</span>
       </div>
       <div class="planning-bar">
-        <div class="planning-segment planning" style="width: ${planningPct}%" title="Planning: ${formatMs(planningTime)}"></div>
-        <div class="planning-segment execution" style="width: ${executionPct}%" title="Execution: ${formatMs(executionTime)}"></div>
+        <div class="planning-segment planning" style="width: ${planningPct}%" title="Planning: ${formatTime(planningTime)}"></div>
+        <div class="planning-segment execution" style="width: ${executionPct}%" title="Execution: ${formatTime(executionTime)}"></div>
       </div>
+      ${breakdownHtml}
+    </div>
+  `;
+
+  // Wire up toggle
+  const toggle = container.querySelector('.planner-breakdown-toggle');
+  const wrapper = container.querySelector('.planner-breakdown-wrapper');
+  if (toggle && wrapper) {
+    toggle.addEventListener('click', () => {
+      toggle.classList.toggle('expanded');
+      wrapper.classList.toggle('expanded');
+    });
+  }
+}
+
+/**
+ * Build the collapsible planner phase breakdown HTML
+ * Structure: Grand total, then Parser, Planner Total (with indented sub-phases), Pending, Prepare, Deploy
+ * All bars are relative to grand total planning time.
+ */
+function buildPlannerBreakdown(planner) {
+  const grandTotal = planner.parser + planner.total + planner.pending + planner.prepare + planner.deploy;
+  if (grandTotal === 0) return '';
+
+  // Top-level phases in display order
+  const topPhases = [
+    { label: 'Parser', value: planner.parser },
+    { label: 'Planner Total', value: planner.total },
+    { label: 'Pending', value: planner.pending },
+    { label: 'Prepare', value: planner.prepare },
+    { label: 'Deploy', value: planner.deploy },
+  ];
+
+  // Sub-phases of Planner Total (indented underneath)
+  const subPhases = [
+    { label: 'Analyzer', value: planner.analyzer },
+    { label: 'Transformer', value: planner.transformer },
+    { label: 'Optimizer', value: planner.optimizer },
+    { label: 'ExecPlanBuild', value: planner.execPlanBuild },
+  ].filter(p => p.value > 0).sort((a, b) => b.value - a.value);
+
+  const renderRow = (phase, indent) => {
+    const pct = grandTotal > 0 ? (phase.value / grandTotal) * 100 : 0;
+    const cls = indent ? 'planner-phase-row indent' : 'planner-phase-row';
+    return `
+      <div class="${cls}">
+        <span class="planner-phase-label">${phase.label}</span>
+        <div class="planner-phase-bar-wrapper">
+          <div class="planner-phase-bar" style="width: ${Math.max(pct, 0.5)}%"></div>
+        </div>
+        <span class="planner-phase-time">${formatTime(phase.value)}</span>
+      </div>
+    `;
+  };
+
+  // Total row at the top
+  let rows = `
+    <div class="planner-phase-row total">
+      <span class="planner-phase-label">Total</span>
+      <div class="planner-phase-bar-wrapper">
+        <div class="planner-phase-bar" style="width: 100%"></div>
+      </div>
+      <span class="planner-phase-time">${formatTime(grandTotal)}</span>
+    </div>
+  `;
+
+  for (const phase of topPhases) {
+    rows += renderRow(phase, false);
+    // Insert indented sub-phases right after Planner Total
+    if (phase.label === 'Planner Total' && subPhases.length > 0) {
+      rows += subPhases.map(p => renderRow(p, true)).join('');
+    }
+  }
+
+  return `
+    <div class="planner-breakdown-toggle">
+      <span class="planner-toggle-icon">▶</span> Planner Phases
+    </div>
+    <div class="planner-breakdown-wrapper">
+      ${rows}
     </div>
   `;
 }

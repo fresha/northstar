@@ -95,8 +95,8 @@ export function analyzeFragments(fragments, execution) {
 }
 
 /**
- * Extract planner timing data
- * Parses keys like "-- Total[1] 57ms": "" to extract timing values
+ * Extract planner timing data (values in seconds)
+ * Parses keys like "-- Total[1] 1s149ms": "" to extract timing values
  */
 function extractPlannerTiming(planner) {
   if (!planner || typeof planner !== 'object') {
@@ -110,30 +110,33 @@ function extractPlannerTiming(planner) {
     optimizer: 0,
     execPlanBuild: 0,
     deploy: 0,
+    parser: 0,
+    pending: 0,
+    prepare: 0,
   };
 
   // Parse planner keys to extract timing
-  // Keys look like: "-- Total[1] 57ms", "    -- Analyzer[1] 23ms"
+  // Keys vary by SR version:
+  //   "-- Total[1] 1s149ms"  (with -- prefix and optional indentation)
+  //   "Total[1] 387ms"       (without prefix)
+  // Use parseNumericValue() to handle compound time strings like "1s149ms"
   for (const key of Object.keys(planner)) {
-    const match = key.match(/--\s*(\w+)\[.*?\]\s*([\d.]+)(ms|us|ns|s)?/i);
+    const match = key.match(/(?:--\s*)?(\w+)\[.*?\]\s*(.+)/);
     if (!match) continue;
 
     const name = match[1].toLowerCase();
-    let value = parseFloat(match[2]);
-    const unit = (match[3] || 'ms').toLowerCase();
+    const timeStr = match[2].trim();
+    const value = parseNumericValue(timeStr); // Returns seconds
 
-    // Convert to milliseconds
-    if (unit === 's') value *= 1000;
-    else if (unit === 'us') value /= 1000;
-    else if (unit === 'ns') value /= 1000000;
-
-    // Map to our timing object
     if (name === 'total') timing.total = value;
     else if (name === 'analyzer') timing.analyzer = value;
     else if (name === 'transformer') timing.transformer = value;
     else if (name === 'optimizer') timing.optimizer = value;
     else if (name === 'execplanbuild') timing.execPlanBuild = value;
     else if (name === 'deploy') timing.deploy = value;
+    else if (name === 'parser') timing.parser = value;
+    else if (name === 'pending') timing.pending = value;
+    else if (name === 'prepare') timing.prepare = value;
   }
 
   // Only return if we found valid data

@@ -2772,6 +2772,109 @@ td.skew-danger {
   background: var(--success);
 }
 
+/* Planner Breakdown */
+.planner-breakdown-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.4rem 0 0;
+  font-family: inherit;
+  user-select: none;
+}
+
+.planner-breakdown-toggle:hover {
+  color: var(--text-primary);
+}
+
+.planner-toggle-icon {
+  display: inline-block;
+  font-size: 0.6rem;
+  transition: transform 0.2s;
+  margin-right: 0.15rem;
+}
+
+.planner-breakdown-toggle.expanded .planner-toggle-icon {
+  transform: rotate(90deg);
+}
+
+.planner-breakdown-wrapper {
+  display: none;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+}
+
+.planner-breakdown-wrapper.expanded {
+  display: flex;
+}
+
+.planner-phase-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+}
+
+.planner-phase-row.total {
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.planner-phase-row.total .planner-phase-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.planner-phase-row.total .planner-phase-bar {
+  opacity: 0.9;
+}
+
+.planner-phase-row.indent {
+  padding-left: 1.25rem;
+}
+
+.planner-phase-row.indent .planner-phase-label {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.65rem;
+}
+
+.planner-phase-row.indent .planner-phase-bar {
+  opacity: 0.5;
+}
+
+.planner-phase-label {
+  width: 90px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.planner-phase-bar-wrapper {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.planner-phase-bar {
+  height: 100%;
+  background: var(--info);
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: width 0.3s ease;
+}
+
+.planner-phase-time {
+  width: 60px;
+  flex-shrink: 0;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Pipeline Timeline */
 .pipeline-timeline {
   background: var(--bg-secondary);

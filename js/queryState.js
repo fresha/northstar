@@ -92,7 +92,7 @@ export async function initQueryState() {
       currentQuery = query;
       querySource = parsed; // Store source for reuse
       notifyListeners();
-      return { loaded: true, tab: parsed.tab, isCompare: false };
+      return { loaded: true, tab: parsed.tab, node: parsed.node || null, isCompare: false };
     }
   } catch (error) {
     hideLoading();

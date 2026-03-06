@@ -234,10 +234,19 @@ function parseSourceRef(ref) {
  */
 export function parseNorthStarUrl(hash) {
   const urlParams = new URLSearchParams(window.location.search);
-  const hashTab = window.location.hash.replace(/^#/, '');
+  const rawHash = window.location.hash.replace(/^#/, '');
 
   const queryRef = urlParams.get('query');
   const optimisedRef = urlParams.get('optimised');
+
+  // For new-format URLs (?query=...), hash can be "plan:14" (tab:nodeId)
+  let hashTab = rawHash;
+  let hashNode = null;
+  if (queryRef && rawHash.includes(':')) {
+    const parts = rawHash.split(':');
+    hashTab = parts[0];
+    hashNode = parts[1];
+  }
 
   // Check for comparison: ?query=paste:ID&optimised=gist:ID
   if (queryRef && optimisedRef) {
@@ -249,7 +258,8 @@ export function parseNorthStarUrl(hash) {
         type: 'compare',
         baseline,
         optimized: optimised,
-        tab: hashTab || 'compare'
+        tab: hashTab || 'compare',
+        node: hashNode ? parseInt(hashNode, 10) : null
       };
     }
   }
@@ -260,14 +270,15 @@ export function parseNorthStarUrl(hash) {
     if (source) {
       return {
         ...source,
-        tab: hashTab || null
+        tab: hashTab || null,
+        node: hashNode ? parseInt(hashNode, 10) : null
       };
     }
   }
 
   // Legacy format: #gist:ID or #paste:ID (fallback for old URLs)
-  if (hashTab && (hashTab.startsWith('gist:') || hashTab.startsWith('paste:'))) {
-    const source = parseSourceRef(hashTab);
+  if (rawHash && (rawHash.startsWith('gist:') || rawHash.startsWith('paste:'))) {
+    const source = parseSourceRef(rawHash);
     if (source) {
       return {
         ...source,

@@ -770,7 +770,7 @@ setupPlanDropZone();
 /// Initialize query state from URL (#gist:ID, #paste:ID, or #compare:ID1..ID2)
 // This MUST be called AFTER all listeners are set up so they receive the initial state
 // It's async now because it loads from external URLs
-initQueryState().then(({ loaded, tab, isCompare, compareData }) => {
+initQueryState().then(({ loaded, tab, node, isCompare, compareData }) => {
   // Handle comparison URL
   if (isCompare && compareData) {
     loadCompareFromJson(
@@ -784,6 +784,10 @@ initQueryState().then(({ loaded, tab, isCompare, compareData }) => {
   // Switch to the tab specified in URL (if any)
   if (loaded && tab) {
     switchToTab(tab);
+    // Zoom to specific node if specified (e.g. #plan:14)
+    if (node != null && tab === 'plan') {
+      setTimeout(() => zoomToNode(node), 300);
+    }
   }
 }).catch(err => {
   console.error('Failed to initialize query state:', err);

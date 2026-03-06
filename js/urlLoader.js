@@ -7,6 +7,11 @@
  * Load query from a URL
  */
 export async function loadFromUrl(url) {
+  // Local file path (relative to current origin)
+  if (url.startsWith('file:')) {
+    return await loadFromLocalFile(url.substring(5));
+  }
+
   // Detect URL type and load accordingly
   if (url.includes('gist.github.com') || url.includes('gist.githubusercontent.com') || url.includes('api.github.com/gists/')) {
     return await loadFromGist(url);
@@ -15,6 +20,28 @@ export async function loadFromUrl(url) {
   } else {
     // Try loading as raw JSON
     return await loadFromRawUrl(url);
+  }
+}
+
+/**
+ * Load from a local file path (relative to origin)
+ */
+async function loadFromLocalFile(path) {
+  let response;
+  try {
+    response = await fetch(path);
+  } catch (networkError) {
+    throw new Error(`Failed to load local file: ${path}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(`Local file not found: ${path}`);
+  }
+
+  try {
+    return await response.json();
+  } catch (parseError) {
+    throw new Error(`Invalid JSON in local file: ${path}`);
   }
 }
 
@@ -185,6 +212,11 @@ function parseSourceRef(ref) {
   if (ref.startsWith('paste:')) {
     const id = ref.substring(6);
     return { type: 'paste', id, url: `https://dpaste.com/${id}` };
+  }
+
+  if (ref.startsWith('file:')) {
+    const path = ref.substring(5);
+    return { type: 'file', id: path, url: `file:${path}` };
   }
 
   return null;

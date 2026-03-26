@@ -16,7 +16,7 @@ import { initQueryState, getQuery, setQuery, clearQuery, addListener, hasQuery, 
 import { loadFromUrl, shareToDpaste, parseNorthStarUrl, extractGistId, extractPasteId, buildQueryUrl, buildCompareUrl } from './urlLoader.js';
 import { initRawJson, updateRawTab, clearRawTab, searchFor } from './rawJson.js';
 import { initTheme } from './theme.js';
-import { initTooltips } from './utils.js';
+import { initTooltips, initHealthPopups } from './utils.js';
 
 // Make zoomToNode available globally for overview tab
 window.zoomToNode = zoomToNode;
@@ -752,6 +752,7 @@ initRawJson();
 
 // Initialize global tooltip system
 initTooltips();
+initHealthPopups();
 
 // Keyboard horizontal scroll for table containers
 document.querySelectorAll('.table-container[tabindex]').forEach(container => {

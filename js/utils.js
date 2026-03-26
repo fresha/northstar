@@ -151,3 +151,69 @@ function hideTooltip() {
   tooltipElement.classList.remove('visible');
 }
 
+// Health popup system for compaction health cells
+let healthPopupElement = null;
+
+export function initHealthPopups() {
+  if (!healthPopupElement) {
+    healthPopupElement = document.createElement('div');
+    healthPopupElement.className = 'health-popup';
+    document.body.appendChild(healthPopupElement);
+  }
+
+  document.addEventListener('mouseenter', (e) => {
+    const target = e.target.closest('.has-health-popup');
+    if (target) showHealthPopup(target);
+  }, true);
+
+  document.addEventListener('mouseleave', (e) => {
+    const target = e.target.closest('.has-health-popup');
+    if (target) hideHealthPopup();
+  }, true);
+}
+
+function showHealthPopup(cell) {
+  const raw = cell.dataset.health;
+  if (!raw) return;
+
+  const data = JSON.parse(raw);
+  const labels = { ok: 'OK', recommended: 'Recommended', urgent: 'Urgent' };
+
+  healthPopupElement.innerHTML = `
+    <div class="health-popup-header health-${data.severity}">
+      Compaction: ${labels[data.severity]}
+    </div>
+    ${data.reasons.map(r => `
+      <div class="health-popup-row health-${r.severity}">
+        <span class="health-popup-label">${r.label}</span>
+        <span class="health-popup-value">${r.value}</span>
+        <span class="health-popup-detail">${r.detail}</span>
+      </div>
+    `).join('')}
+  `;
+
+  healthPopupElement.classList.add('visible');
+
+  // Position below cell
+  const rect = cell.getBoundingClientRect();
+  const popupRect = healthPopupElement.getBoundingClientRect();
+  const padding = 12;
+
+  let left = rect.left;
+  let top = rect.bottom + 6;
+
+  if (left + popupRect.width > window.innerWidth - padding) {
+    left = window.innerWidth - popupRect.width - padding;
+  }
+  if (top + popupRect.height > window.innerHeight - padding) {
+    top = rect.top - popupRect.height - 6;
+  }
+
+  healthPopupElement.style.left = `${left}px`;
+  healthPopupElement.style.top = `${top}px`;
+}
+
+function hideHealthPopup() {
+  healthPopupElement.classList.remove('visible');
+}
+

@@ -273,8 +273,8 @@ function renderComparison() {
     },
     {
       label: 'Total Bytes Read',
-      baseline: sumMetric(baseline.scans, 'BytesRead', 'unique'),
-      optimized: sumMetric(optimized.scans, 'BytesRead', 'unique'),
+      baseline: sumMetric(baseline.scans, 'BytesRead', 'unique') + sumMetric(baseline.scans, 'AppIOBytesRead', 'unique') + sumMetric(baseline.scans, 'DataCacheReadBytes', 'unique'),
+      optimized: sumMetric(optimized.scans, 'BytesRead', 'unique') + sumMetric(optimized.scans, 'AppIOBytesRead', 'unique') + sumMetric(optimized.scans, 'DataCacheReadBytes', 'unique'),
       format: 'bytes',
       lowerIsBetter: true
     },

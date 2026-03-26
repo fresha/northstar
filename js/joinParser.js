@@ -42,7 +42,7 @@ export function findBuildSideExchange(joinNodeId, topologyMap) {
   if (!topologyMap) return null;
 
   const joinNode = topologyMap.get(joinNodeId);
-  if (!joinNode || joinNode.name !== 'HASH_JOIN') return null;
+  if (!joinNode || !joinNode.name.endsWith('_JOIN')) return null;
 
   // HASH_JOIN has children [probe_child, build_child]
   // The build side is typically the second child
@@ -178,8 +178,8 @@ export function findHashJoins(obj, path = '', context = {}) {
       newContext.pipelineId = pipelineMatch[1];
     }
 
-    // Check if this key is a HASH_JOIN_PROBE operator (including SPILLABLE variant)
-    if (key.includes('HASH_JOIN_PROBE')) {
+    // Check if this key is a JOIN_PROBE operator (HASH_JOIN, NESTLOOP_JOIN, including SPILLABLE)
+    if (key.includes('JOIN_PROBE')) {
       const match = key.match(/plan_node_id=(\d+)/);
       const planNodeId = match ? match[1] : 'unknown';
 
@@ -194,8 +194,8 @@ export function findHashJoins(obj, path = '', context = {}) {
       });
     }
 
-    // Check if this key is a HASH_JOIN_BUILD operator (including SPILLABLE variant)
-    if (key.includes('HASH_JOIN_BUILD')) {
+    // Check if this key is a JOIN_BUILD operator (HASH_JOIN, NESTLOOP_JOIN, including SPILLABLE)
+    if (key.includes('JOIN_BUILD')) {
       const match = key.match(/plan_node_id=(\d+)/);
       const planNodeId = match ? match[1] : 'unknown';
 
@@ -289,7 +289,7 @@ export function extractJoinMetrics(join, totalTimeSeconds, buildInputRows = null
     distributionMode: probeUnique.DistributionMode || buildUnique.DistributionMode || '-',
     totalTime: formatTime(totalTimeSeconds),
     totalTimeSeconds: totalTimeSeconds,
-    joinPredicates: buildUnique.JoinPredicates || probeUnique.JoinPredicates || '-',
+    joinPredicates: buildUnique.JoinPredicates || probeUnique.JoinPredicates || probeUnique.JoinConjuncts || buildUnique.JoinConjuncts || '-',
 
     // Probe side metrics
     probe: {

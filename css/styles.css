@@ -3069,6 +3069,19 @@ td.skew-danger {
   opacity: 0.5;
 }
 
+.planner-phase-row.indent-2 {
+  padding-left: 2.5rem;
+}
+
+.planner-phase-row.indent-2 .planner-phase-label {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.65rem;
+}
+
+.planner-phase-row.indent-2 .planner-phase-bar {
+  opacity: 0.4;
+}
+
 .planner-phase-label {
   width: 90px;
   flex-shrink: 0;
@@ -3097,6 +3110,63 @@ td.skew-danger {
   flex-shrink: 0;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+}
+
+/* Iceberg Scan Details section */
+#icebergDetailContainer {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+/* Iceberg detail table */
+#icebergDetailContainer table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#icebergDetailContainer table th,
+#icebergDetailContainer table td {
+  border-bottom: 1px solid var(--border);
+}
+
+#icebergDetailContainer table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.iceberg-detail-name {
+  color: var(--accent) !important;
+}
+
+.iceberg-detail-filter {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+/* Pruning color coding */
+.iceberg-pct-good {
+  color: var(--success, #a3be8c);
+}
+
+.iceberg-pct-warn {
+  color: var(--warning, #ebcb8b);
+}
+
+.iceberg-pct-bad {
+  color: var(--error, #bf616a);
+}
+
+.iceberg-pct-neutral {
+  color: var(--text-tertiary, var(--text-secondary));
+  opacity: 0.7;
 }
 
 /* Pipeline Timeline */

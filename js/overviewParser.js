@@ -139,8 +139,78 @@ function extractPlannerTiming(planner) {
     else if (name === 'prepare') timing.prepare = value;
   }
 
+  // Parse ICEBERG.getScanFiles timing (has dots so the main regex above won't match)
+  for (const key of Object.keys(planner)) {
+    const icebergMatch = key.match(/ICEBERG\.getScanFiles\[.*?\]\s*(.+)/);
+    if (icebergMatch) {
+      timing.icebergGetScanFiles = parseNumericValue(icebergMatch[1].trim());
+      break;
+    }
+  }
+
+  // Parse Iceberg ScanMetrics from the ScanReport string (per table)
+  const icebergData = planner.ICEBERG?.ScanMetrics;
+  if (icebergData) {
+    timing.icebergTables = parseIcebergScanMetrics(icebergData);
+  }
+
   // Only return if we found valid data
   return timing.total > 0 ? timing : null;
+}
+
+/**
+ * Parse Iceberg ScanMetrics from the planner's ICEBERG.ScanMetrics object.
+ * Each key is a table identifier, each value is a ScanReport toString() dump.
+ * Returns an array of parsed table metrics.
+ */
+function parseIcebergScanMetrics(scanMetrics) {
+  const tables = [];
+
+  for (const [tableKey, reportStr] of Object.entries(scanMetrics)) {
+    // Extract table name from key like "IcebergTableName{dbName='...', tableName='...'}"
+    const tableNameMatch = tableKey.match(/tableName='([^']+)'/);
+    const tableName = tableNameMatch ? tableNameMatch[1] : tableKey;
+
+    // Extract filter from report
+    const filterMatch = reportStr.match(/filter=(.+?), schemaId=/);
+    const filter = filterMatch ? filterMatch[1] : null;
+
+    // Helper to extract CounterResult values
+    const counter = (name) => {
+      const m = reportStr.match(new RegExp(`${name}=CounterResult\\{unit=\\w+, value=(\\d+)\\}`));
+      return m ? parseInt(m[1]) : 0;
+    };
+
+    // Helper to extract planning duration
+    const durationMatch = reportStr.match(/totalPlanningDuration=TimerResult\{.*?totalDuration=PT(\d+(?:\.\d+)?)S/);
+    const planningDuration = durationMatch ? parseFloat(durationMatch[1]) : 0;
+
+    tables.push({
+      tableName,
+      filter,
+      planningDuration,
+      // Data manifests
+      totalDataManifests: counter('totalDataManifests'),
+      scannedDataManifests: counter('scannedDataManifests'),
+      skippedDataManifests: counter('skippedDataManifests'),
+      // Data files
+      resultDataFiles: counter('resultDataFiles'),
+      skippedDataFiles: counter('skippedDataFiles'),
+      totalFileSizeInBytes: counter('totalFileSizeInBytes'),
+      // Delete manifests
+      totalDeleteManifests: counter('totalDeleteManifests'),
+      scannedDeleteManifests: counter('scannedDeleteManifests'),
+      skippedDeleteManifests: counter('skippedDeleteManifests'),
+      // Delete files
+      resultDeleteFiles: counter('resultDeleteFiles'),
+      skippedDeleteFiles: counter('skippedDeleteFiles'),
+      positionalDeleteFiles: counter('positionalDeleteFiles'),
+      equalityDeleteFiles: counter('equalityDeleteFiles'),
+      totalDeleteFileSizeInBytes: counter('totalDeleteFileSizeInBytes'),
+    });
+  }
+
+  return tables;
 }
 
 /**

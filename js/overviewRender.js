@@ -3,7 +3,7 @@
  * Displays query summary, pipeline timeline, and quick stats
  */
 
-import { formatTime } from './utils.js';
+import { formatTime, formatBytes } from './utils.js';
 
 /**
  * Render the Overview dashboard
@@ -97,7 +97,7 @@ function renderPlanningBar(analysis) {
     </div>
   `;
 
-  // Wire up toggle
+  // Wire up planner breakdown toggle
   const toggle = container.querySelector('.planner-breakdown-toggle');
   const wrapper = container.querySelector('.planner-breakdown-wrapper');
   if (toggle && wrapper) {
@@ -106,6 +106,26 @@ function renderPlanningBar(analysis) {
       wrapper.classList.toggle('expanded');
     });
   }
+
+  // Render Iceberg detail table in its own section
+  renderIcebergDetailSection(planner);
+}
+
+/**
+ * Render Iceberg scan detail table in its own section above Execution Stats.
+ * Only shows when Iceberg tables are present.
+ */
+function renderIcebergDetailSection(planner) {
+  const container = document.getElementById('icebergDetailContainer');
+  if (!container) return;
+
+  if (!planner?.icebergTables?.length) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  container.innerHTML = buildIcebergDetailTable(planner.icebergTables);
 }
 
 /**
@@ -165,6 +185,13 @@ function buildPlannerBreakdown(planner) {
     if (phase.label === 'Planner Total' && subPhases.length > 0) {
       rows += subPhases.map(p => renderRow(p, true)).join('');
     }
+    // Insert Iceberg timing bars right after Prepare
+    if (phase.label === 'Prepare' && planner.icebergTables?.length > 0) {
+      if (planner.icebergGetScanFiles > 0) {
+        rows += renderRow({ label: 'getScanFiles', value: planner.icebergGetScanFiles }, true);
+      }
+      rows += buildIcebergTimingBars(planner.icebergTables, grandTotal);
+    }
   }
 
   return `
@@ -173,6 +200,141 @@ function buildPlannerBreakdown(planner) {
     </div>
     <div class="planner-breakdown-wrapper">
       ${rows}
+    </div>
+  `;
+}
+
+/**
+ * Find the longest common prefix across table names, splitting on underscores.
+ * E.g. ['snowflake__reporting__seg_a', 'snowflake__reporting__seg_b'] → 'snowflake__reporting__'
+ */
+function icebergCommonPrefix(tables) {
+  if (tables.length <= 1) return '';
+  const names = tables.map(t => t.tableName);
+  const parts0 = names[0].split('_');
+  let commonLen = 0;
+  for (let i = 0; i < parts0.length; i++) {
+    const prefix = parts0.slice(0, i + 1).join('_') + '_';
+    if (names.every(n => n.startsWith(prefix))) {
+      commonLen = prefix.length;
+    } else {
+      break;
+    }
+  }
+  return names[0].substring(0, commonLen);
+}
+
+/**
+ * Build Iceberg timing bars — one per table, normalized to grandTotal like other planner bars.
+ */
+function buildIcebergTimingBars(tables, grandTotal) {
+  const sorted = [...tables].sort((a, b) => b.planningDuration - a.planningDuration);
+  const prefix = icebergCommonPrefix(sorted);
+
+  const bars = sorted.map(t => {
+    const pct = grandTotal > 0 ? (t.planningDuration / grandTotal) * 100 : 0;
+    const shortName = prefix ? t.tableName.substring(prefix.length) : t.tableName;
+    return `
+      <div class="planner-phase-row indent-2">
+        <span class="planner-phase-label" title="${t.tableName}">${shortName}</span>
+        <div class="planner-phase-bar-wrapper">
+          <div class="planner-phase-bar" style="width: ${Math.max(pct, 0.5)}%"></div>
+        </div>
+        <span class="planner-phase-time">${formatTime(t.planningDuration)}</span>
+      </div>
+    `;
+  }).join('');
+
+  return bars;
+}
+
+/**
+ * Build standalone Iceberg detail table with full scan metrics.
+ * Color-codes pruning percentages: green (good), yellow (moderate), red (poor).
+ */
+function buildIcebergDetailTable(tables) {
+  const sorted = [...tables].sort((a, b) => b.planningDuration - a.planningDuration);
+  const prefix = icebergCommonPrefix(sorted);
+
+  // Color-code pruning: green >= 80%, yellow >= 30%, red < 30%
+  // Neutral when total count is small (nothing meaningful to prune)
+  const pctClass = (pct, total) => {
+    if (total <= 20) return 'iceberg-pct-neutral';
+    const n = parseInt(pct);
+    if (n >= 80) return 'iceberg-pct-good';
+    if (n >= 30) return 'iceberg-pct-warn';
+    return 'iceberg-pct-bad';
+  };
+
+  const pctStr = (skipped, total) => {
+    if (total === 0) return '-';
+    return ((skipped / total) * 100).toFixed(0) + '%';
+  };
+
+  const detailRows = sorted.map(t => {
+    const totalDataFiles = t.resultDataFiles + t.skippedDataFiles;
+    const dataMfPruned = pctStr(t.skippedDataManifests, t.totalDataManifests);
+    const dataFilePruned = pctStr(t.skippedDataFiles, totalDataFiles);
+    const totalDelFiles = t.resultDeleteFiles + t.skippedDeleteFiles;
+    const delMfPruned = pctStr(t.skippedDeleteManifests, t.totalDeleteManifests);
+    const delFilePruned = pctStr(t.skippedDeleteFiles, totalDelFiles);
+
+    const shortName = prefix ? t.tableName.substring(prefix.length) : t.tableName;
+    const filterDisplay = t.filter
+      ? t.filter.replace(/ref\(name="(\w+)"\)/g, '$1')
+      : '';
+
+    return `
+      <tr>
+        <td class="iceberg-detail-name" title="${t.tableName}">${shortName}</td>
+        <td class="iceberg-detail-filter" title="${filterDisplay}">${filterDisplay}</td>
+        <td class="iceberg-detail-right">${formatTime(t.planningDuration)}</td>
+        <td class="iceberg-detail-right">${t.scannedDataManifests}/${t.totalDataManifests}</td>
+        <td class="iceberg-detail-right"><span class="${pctClass(dataMfPruned, t.totalDataManifests)}">${dataMfPruned}</span></td>
+        <td class="iceberg-detail-right">${t.resultDataFiles}/${totalDataFiles}</td>
+        <td class="iceberg-detail-right"><span class="${pctClass(dataFilePruned, totalDataFiles)}">${dataFilePruned}</span></td>
+        <td class="iceberg-detail-right">${formatBytes(t.totalFileSizeInBytes)}</td>
+        <td class="iceberg-detail-right">${t.totalDeleteManifests > 0 ? `${t.scannedDeleteManifests}/${t.totalDeleteManifests}` : '-'}</td>
+        <td class="iceberg-detail-right">${t.totalDeleteManifests > 0 ? `<span class="${pctClass(delMfPruned, t.totalDeleteManifests)}">${delMfPruned}</span>` : '-'}</td>
+        <td class="iceberg-detail-right">${totalDelFiles > 0 ? `${t.resultDeleteFiles}/${totalDelFiles}` : '-'}</td>
+        <td class="iceberg-detail-right">${totalDelFiles > 0 ? `<span class="${pctClass(delFilePruned, totalDelFiles)}">${delFilePruned}</span>` : '-'}</td>
+        <td class="iceberg-detail-right">${t.positionalDeleteFiles > 0 ? t.positionalDeleteFiles : '-'}</td>
+        <td class="iceberg-detail-right">${t.equalityDeleteFiles > 0 ? t.equalityDeleteFiles : '-'}</td>
+        <td class="iceberg-detail-right">${t.totalDeleteFileSizeInBytes > 0 ? formatBytes(t.totalDeleteFileSizeInBytes) : '-'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <h3 class="section-header">Iceberg Scan Details</h3>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr class="group-header-row">
+            <th colspan="3" class="group-spacer"></th>
+            <th colspan="5" class="data-cache-header">Data</th>
+            <th colspan="7" class="iceberg-v2-header">Deletes</th>
+          </tr>
+          <tr>
+            <th data-tooltip="Iceberg table name (common prefix removed)">Table</th>
+            <th data-tooltip="Iceberg partition/predicate filter pushed down to the scan planner">Filter</th>
+            <th data-tooltip="Time spent scanning manifests and planning file splits for this table">Planning</th>
+            <th data-tooltip="Data manifests scanned / total — manifests are index files listing which data files exist">Manifests</th>
+            <th data-tooltip="Percentage of data manifests skipped via partition pruning — higher is better, 0% means all manifests were read">Pruned</th>
+            <th data-tooltip="Data files matched / total — matched files are the ones actually scanned">Files</th>
+            <th data-tooltip="Percentage of data files skipped via min/max stats and partition pruning — higher is better">Pruned</th>
+            <th data-tooltip="Total size of matched data files on disk (before any row-level filtering)">Size</th>
+            <th data-tooltip="Delete manifests scanned / total — used by Iceberg V2 merge-on-read (MOR) tables">Manifests</th>
+            <th data-tooltip="Percentage of delete manifests skipped via partition pruning">Pruned</th>
+            <th data-tooltip="Delete files matched / total — positional delete files that need to be applied during scan">Files</th>
+            <th data-tooltip="Percentage of delete files skipped — higher means fewer deletes to apply at read time">Pruned</th>
+            <th data-tooltip="Positional delete files — mark specific row positions as deleted (Iceberg V2 MOR)">Pos</th>
+            <th data-tooltip="Equality delete files — mark rows matching specific values as deleted (rare, expensive)">Eq</th>
+            <th data-tooltip="Total size of matched delete files on disk">Size</th>
+          </tr>
+        </thead>
+        <tbody>${detailRows}</tbody>
+      </table>
     </div>
   `;
 }

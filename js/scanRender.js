@@ -87,8 +87,10 @@ export const EXTERNAL_METRICS_CONFIG = [
   { key: 'DataCacheReadBytes',              label: 'Cache Hit',          source: 'unique', type: 'bytes',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Bytes served from local data cache (SSD + memory) - avoids remote storage' },
   { key: 'DataCacheReadDiskBytes',          label: 'Cache SSD',          source: 'unique', type: 'bytes',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Bytes served from local SSD cache' },
   { key: 'DataCacheReadMemBytes',           label: 'Cache Mem',          source: 'unique', type: 'bytes',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Bytes served from in-memory cache' },
-  { key: 'AppIOBytesRead',                  label: 'Cache Miss',         source: 'unique', type: 'bytes',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Bytes fetched from remote object storage (S3/GCS) - cache misses' },
-  { key: 'CacheHitRate',                    label: 'Hit Rate',           source: 'computed', type: 'pct',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Percentage of data served from local cache vs remote storage' },
+  { key: 'FSIOBytesRead',                   label: 'Remote IO',         source: 'unique', type: 'bytes',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Bytes read from remote filesystem/object storage (cold reads that bypassed cache) - non-zero means data was not cached' },
+  { key: 'DataCacheWriteBytes',             label: 'Cache Write',        source: 'unique', type: 'bytes',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Bytes written to local data cache after a cache miss - indicates cache warming activity' },
+  { key: 'CacheHitRate',                    label: 'Hit Rate',           source: 'computed', type: 'pct',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Cache Hit / (Cache Hit + Remote IO) - percentage of data served from local cache vs remote object storage' },
+  { key: 'AppIOBytesRead',                  label: 'App IO',             source: 'unique', type: 'bytes',     group: 'Data IO', headerClass: 'data-cache-header', description: 'Application-level bytes requested - routed through cache or remote storage' },
 
   // === Scan Ranges (file splits) ===
   { key: 'ScanRanges',                      label: 'Ranges',             source: 'unique', type: 'number',    group: 'Scan Ranges', headerClass: 'storage-header', description: 'Number of file splits distributed across compute nodes - more ranges = more parallelism' },
@@ -537,7 +539,7 @@ function renderTableBodyForConfig(scans, metricsConfig, tbodyId, state) {
           value = formatBytes(cacheBytes + remoteBytes);
         } else if (col.key === 'CacheHitRate') {
           const cacheBytes = parseNumericValue(scan.uniqueMetrics['DataCacheReadBytes']);
-          const remoteBytes = parseNumericValue(scan.uniqueMetrics['AppIOBytesRead']);
+          const remoteBytes = parseNumericValue(scan.uniqueMetrics['FSIOBytesRead']);
           const total = cacheBytes + remoteBytes;
           value = total > 0 ? ((cacheBytes / total) * 100) : null;
         } else if (col.key === 'CompressionRatio') {
@@ -715,8 +717,8 @@ function sortTableForConfig(th, metricsConfig, theadId, tbodyId, state) {
         valA = parseNumericValue(a.uniqueMetrics['DataCacheReadBytes']) + parseNumericValue(a.uniqueMetrics['AppIOBytesRead']);
         valB = parseNumericValue(b.uniqueMetrics['DataCacheReadBytes']) + parseNumericValue(b.uniqueMetrics['AppIOBytesRead']);
       } else if (key === 'CacheHitRate') {
-        const cA = parseNumericValue(a.uniqueMetrics['DataCacheReadBytes']), rA = parseNumericValue(a.uniqueMetrics['AppIOBytesRead']);
-        const cB = parseNumericValue(b.uniqueMetrics['DataCacheReadBytes']), rB = parseNumericValue(b.uniqueMetrics['AppIOBytesRead']);
+        const cA = parseNumericValue(a.uniqueMetrics['DataCacheReadBytes']), rA = parseNumericValue(a.uniqueMetrics['FSIOBytesRead']);
+        const cB = parseNumericValue(b.uniqueMetrics['DataCacheReadBytes']), rB = parseNumericValue(b.uniqueMetrics['FSIOBytesRead']);
         valA = (cA + rA) > 0 ? cA / (cA + rA) : 0;
         valB = (cB + rB) > 0 ? cB / (cB + rB) : 0;
       } else if (key === 'CompressionRatio') {

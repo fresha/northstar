@@ -15,6 +15,7 @@ import { trackEvent } from './analytics.js';
 import { initQueryState, getQuery, setQuery, clearQuery, addListener, hasQuery, getShareableUrl, getQuerySource } from './queryState.js';
 import { loadFromUrl, shareToDpaste, parseNorthStarUrl, extractGistId, extractPasteId, buildQueryUrl, buildCompareUrl } from './urlLoader.js';
 import { initRawJson, updateRawTab, clearRawTab, searchFor } from './rawJson.js';
+import { initSqlTab, updateSqlTab, clearSqlTab } from './sqlTab.js';
 import { initTheme } from './theme.js';
 import { initTooltips, initHealthPopups } from './utils.js';
 
@@ -697,6 +698,13 @@ function updateAllTabsWithQuery(json) {
     console.error('Error updating Join Summary tab:', error);
   }
 
+  // Update Raw SQL tab
+  try {
+    updateSqlTab(json);
+  } catch (error) {
+    console.error('Error updating Raw SQL tab:', error);
+  }
+
   // Update Raw JSON tab
   try {
     updateRawTab(json);
@@ -728,6 +736,9 @@ function clearAllTabs() {
   joinDropZone.classList.remove('hidden');
   joinDashboard.classList.remove('visible');
 
+  // Reset Raw SQL tab
+  clearSqlTab();
+
   // Reset Raw JSON tab
   clearRawTab();
 
@@ -749,6 +760,7 @@ initCompare();
 
 // Initialize Raw JSON tab (search, copy)
 initRawJson();
+initSqlTab();
 
 // Initialize global tooltip system
 initTooltips();
@@ -828,7 +840,7 @@ window.navigateToRawJsonNode = function(planNodeId, operatorType = 'scan') {
   setTimeout(() => {
     let searchTerm;
     if (operatorType === 'join') {
-      searchTerm = `HASH_JOIN_PROBE (plan_node_id=${planNodeId})`;
+      searchTerm = `JOIN_PROBE (plan_node_id=${planNodeId})`;
     } else {
       // Search pattern that matches both OLAP_SCAN and CONNECTOR_SCAN
       // The pattern "_SCAN (plan_node_id=" will find either variant

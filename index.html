@@ -124,6 +124,7 @@
     <button class="tab-btn" data-tab="scan">Scan Summary</button>
     <button class="tab-btn" data-tab="join">Join Summary</button>
     <button class="tab-btn" data-tab="plan">Query Plan</button>
+    <button class="tab-btn" data-tab="sql">Raw SQL</button>
     <button class="tab-btn" data-tab="raw">Raw JSON</button>
     <button class="tab-btn" data-tab="compare">Query Comparison</button>
   </nav>
@@ -434,6 +435,30 @@
           <div class="slowest-panel-content" id="slowestPanelContent">
             <!-- Populated by JavaScript -->
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== RAW SQL TAB ====== -->
+    <div class="tab-panel" id="tab-sql">
+      <div class="drop-zone" id="sqlDropZone">
+        <div class="drop-zone-icon">📁</div>
+        <h2>Drop your query profile JSON here</h2>
+        <p>or click to load query</p>
+        <input type="file" id="sqlFileInput" accept=".json">
+      </div>
+
+      <div class="sql-container" id="sqlContainer" style="display: none;">
+        <div class="sql-header">
+          <div class="sql-header-title">
+            <h2>SQL Query</h2>
+          </div>
+          <div class="sql-header-actions">
+            <button class="btn-copy-raw" id="btnCopySql">Copy to Clipboard</button>
+          </div>
+        </div>
+        <div class="sql-content">
+          <pre id="sqlContent"><code></code></pre>
         </div>
       </div>
     </div>

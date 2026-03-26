@@ -2123,6 +2123,64 @@ td.skew-danger {
 }
 
 /* ========================================
+   Raw SQL Tab Styles
+   ======================================== */
+.sql-container {
+  padding: 1rem;
+}
+
+.sql-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sql-header h2 {
+  color: var(--accent);
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.sql-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sql-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+}
+
+.sql-content pre {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  white-space: pre;
+  color: var(--text-primary);
+}
+
+.sql-content code {
+  font-family: inherit;
+}
+
+/* SQL syntax highlighting */
+.sql-keyword { color: #81a1c1; font-weight: 600; }
+.sql-function { color: #88c0d0; }
+.sql-string { color: #a3be8c; }
+.sql-number { color: #d08770; }
+.sql-comment { color: #616e88; font-style: italic; }
+.sql-operator { color: #b48ead; }
+
+/* ========================================
    Raw JSON Tab Styles
    ======================================== */
 .raw-container {

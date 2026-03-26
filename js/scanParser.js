@@ -55,6 +55,7 @@ export function findScanOperators(obj, path = '', context = {}) {
       // Extract operator type from key
       const operatorType = key.startsWith('CONNECTOR_SCAN') ? 'CONNECTOR_SCAN' : 'OLAP_SCAN';
 
+      const uniqueMetrics = value.UniqueMetrics || {};
       results.push({
         id: planNodeId,
         planNodeId: planNodeId,
@@ -62,8 +63,9 @@ export function findScanOperators(obj, path = '', context = {}) {
         fragmentId: newContext.fragmentId || 'unknown',
         path: path + ' > ' + key,
         operatorType: operatorType,
+        dataSourceType: uniqueMetrics.DataSourceType || null,
         commonMetrics: value.CommonMetrics || {},
-        uniqueMetrics: value.UniqueMetrics || {}
+        uniqueMetrics: uniqueMetrics
       });
     }
 
@@ -79,6 +81,24 @@ export function findScanOperators(obj, path = '', context = {}) {
 
 // Backward compatibility alias
 export const findConnectorScans = findScanOperators;
+
+/**
+ * Classify scan operators into internal (OLAP/Lake) vs external (Iceberg/Hive)
+ * Internal: OLAP_SCAN or CONNECTOR_SCAN with LakeDataSource
+ * External: CONNECTOR_SCAN with HiveDataSource (Iceberg, Hive, etc.)
+ */
+export function classifyScanOperators(scans) {
+  const internalScans = [];
+  const externalScans = [];
+  for (const scan of scans) {
+    if (scan.operatorType === 'CONNECTOR_SCAN' && scan.dataSourceType === 'HiveDataSource') {
+      externalScans.push(scan);
+    } else {
+      internalScans.push(scan);
+    }
+  }
+  return { internalScans, externalScans };
+}
 
 /**
  * Process a query profile JSON and extract relevant data

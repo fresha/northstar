@@ -475,6 +475,18 @@ main {
   font-weight: 400;
 }
 
+/* Scan Summary - flat card row */
+.scan-summary-cards {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.scan-summary-cards .card {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Responsive: stack on smaller screens */
 @media (max-width: 1200px) {
   .cards-container {
@@ -504,6 +516,7 @@ main {
   overflow: hidden;
 }
 
+
 .table-header {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border);
@@ -515,6 +528,50 @@ main {
 .table-header h2 {
   font-size: 1rem;
   font-weight: 600;
+}
+
+.scan-subtabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.scan-subtabs:empty {
+  display: none;
+  padding: 0;
+  border: none;
+}
+
+.scan-subtab {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.scan-subtab:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.scan-subtab.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.scan-subtab .subtab-count {
+  margin-left: 0.35rem;
+  font-size: 0.65rem;
+  opacity: 0.7;
 }
 
 .table-container {
@@ -682,6 +739,115 @@ tr.group-header-row th.storage-header {
   background: rgba(180, 142, 173, 0.15);
   color: var(--purple);
   border-bottom: 2px solid var(--purple);
+}
+
+/* Data Cache - teal (external scans) */
+tr.group-header-row th.data-cache-header {
+  background: rgba(136, 192, 208, 0.15);
+  color: rgb(136, 192, 208);
+  border-bottom: 2px solid rgb(136, 192, 208);
+}
+
+/* Parquet Filters - amber (external scans) */
+tr.group-header-row th.parquet-filters-header {
+  background: rgba(235, 203, 139, 0.15);
+  color: rgb(235, 203, 139);
+  border-bottom: 2px solid rgb(235, 203, 139);
+}
+
+/* Row Processing - orange (external scans) */
+tr.group-header-row th.row-processing-header {
+  background: rgba(208, 135, 112, 0.15);
+  color: rgb(208, 135, 112);
+  border-bottom: 2px solid rgb(208, 135, 112);
+}
+
+/* Iceberg V2 - purple (external scans) */
+tr.group-header-row th.iceberg-v2-header {
+  background: rgba(180, 142, 173, 0.15);
+  color: rgb(180, 142, 173);
+  border-bottom: 2px solid rgb(180, 142, 173);
+}
+
+/* Health - green (external scans) */
+tr.group-header-row th.health-header {
+  background: rgba(163, 190, 140, 0.15);
+  color: rgb(163, 190, 140);
+  border-bottom: 2px solid rgb(163, 190, 140);
+}
+
+/* Health cell severity colors */
+.health-cell {
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: default;
+}
+.health-ok { color: var(--success); }
+.health-recommended { color: var(--warning); }
+.health-urgent { color: var(--error); }
+
+/* Health popup */
+.health-popup {
+  position: fixed;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  min-width: 280px;
+  font-size: 0.75rem;
+}
+.health-popup.visible {
+  opacity: 1;
+}
+.health-popup-header {
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+}
+.health-popup-header.health-ok { color: var(--success); background: rgba(163, 190, 140, 0.1); }
+.health-popup-header.health-recommended { color: var(--warning); background: rgba(235, 203, 139, 0.1); }
+.health-popup-header.health-urgent { color: var(--error); background: rgba(191, 97, 106, 0.1); }
+
+.health-popup-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+}
+.health-popup-row:last-child { border-bottom: none; }
+.health-popup-row.health-ok { border-left-color: var(--success); }
+.health-popup-row.health-recommended { border-left-color: var(--warning); background: rgba(235, 203, 139, 0.05); }
+.health-popup-row.health-urgent { border-left-color: var(--error); background: rgba(191, 97, 106, 0.08); }
+
+.health-popup-label {
+  color: var(--text-secondary);
+  min-width: 120px;
+}
+.health-popup-value {
+  font-weight: 600;
+  min-width: 60px;
+}
+.health-popup-row.health-ok .health-popup-value { color: #a3be8c; }
+.health-popup-row.health-recommended .health-popup-value { color: #ebcb8b; }
+.health-popup-row.health-urgent .health-popup-value { color: #bf616a; }
+
+.health-popup-row.health-ok .health-popup-detail { color: #a3be8c; }
+.health-popup-row.health-recommended .health-popup-detail { color: #ebcb8b; }
+.health-popup-row.health-urgent .health-popup-detail { color: #bf616a; }
+
+.health-popup-detail {
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  margin-left: auto;
 }
 
 /* Add subtle left border to first column of each group */

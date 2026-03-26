@@ -205,43 +205,24 @@
         </div>
       </section>
 
-      <!-- Summary Cards - Organized in Sections -->
-      <div class="cards-container">
-        <section class="cards-section" id="memoryCards">
-          <h3 class="section-title">Memory</h3>
-          <div class="summary-cards">
-            <!-- Populated by JavaScript -->
-          </div>
-        </section>
-        
-        <section class="cards-section" id="timeCards">
-          <h3 class="section-title">Time</h3>
-          <div class="summary-cards">
-            <!-- Populated by JavaScript -->
-          </div>
-        </section>
-        
-        <section class="cards-section" id="scanCards">
-          <h3 class="section-title">Scan Metrics</h3>
-          <div class="summary-cards">
-            <!-- Populated by JavaScript -->
-          </div>
-        </section>
+      <!-- Summary Cards -->
+      <div class="scan-summary-cards" id="scanSummaryCards">
+        <!-- Populated by JavaScript -->
       </div>
 
-      <!-- CONNECTOR_SCAN Table -->
-      <section class="table-section">
-        <div class="table-header">
-          <h2>🔍 CONNECTOR_SCAN Operators</h2>
-        </div>
-        <div class="table-container" tabindex="0">
+      <!-- Scan Tables with sub-tab toggle -->
+      <section class="table-section" id="scanTableSection">
+        <div class="scan-subtabs" id="scanSubtabs"></div>
+        <div class="table-container" tabindex="0" id="internalTableContainer">
           <table id="scanTable">
-            <thead id="tableHead">
-              <!-- Populated by JavaScript: two rows (group headers + column headers) -->
-            </thead>
-            <tbody id="tableBody">
-              <!-- Populated by JavaScript -->
-            </tbody>
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="table-container" tabindex="0" id="externalTableContainer" style="display: none;">
+          <table id="externalScanTable">
+            <thead id="externalTableHead"></thead>
+            <tbody id="externalTableBody"></tbody>
           </table>
         </div>
       </section>

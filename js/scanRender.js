@@ -69,7 +69,7 @@ export const EXTERNAL_METRICS_CONFIG = [
 
   // === Output (what the scan produces) ===
   { key: 'PullRowNum',                      label: 'Pull Rows',          source: 'common', type: 'rows',      group: 'Output', headerClass: 'output-header', description: 'Final output rows from the scan operator' },
-  { key: 'TotalBytesRead',                  label: 'Total Read',         source: 'computed', type: 'bytes',   group: 'Output', headerClass: 'output-header', description: 'Total bytes read (cache hits + remote fetches)' },
+  { key: 'TotalBytesRead',                  label: 'Total Read',         source: 'computed', type: 'bytes',   group: 'Output', headerClass: 'output-header', description: 'Total physical IO bytes (DataCacheReadBytes + FSIOBytesRead) — cache hits from local disk plus remote fetches from object storage' },
 
   // === Operator Time (top-level timing + skew) ===
   { key: 'OperatorTotalTime',               label: 'Operator Time',      source: 'common', type: 'time', group: 'Operator Time', headerClass: 'operator-time-header', description: 'Total time spent in this operator' },
@@ -248,10 +248,11 @@ function renderQueryMeta(summary) {
 function renderSummaryCards(internalScans, externalScans, execution) {
   const allScans = [...internalScans, ...externalScans];
 
-  // Calculate totals - BytesRead for internal, AppIOBytesRead for external
+  // Calculate totals - BytesRead for internal, DataCacheReadBytes + FSIOBytesRead for external
+  // External uses physical IO: cache hits (DataCacheReadBytes) + remote fetches (FSIOBytesRead)
   const totalBytesRead = sumMetric(internalScans, 'BytesRead', 'unique')
-                       + sumMetric(externalScans, 'AppIOBytesRead', 'unique')
-                       + sumMetric(externalScans, 'DataCacheReadBytes', 'unique');
+                       + sumMetric(externalScans, 'DataCacheReadBytes', 'unique')
+                       + sumMetric(externalScans, 'FSIOBytesRead', 'unique');
   const totalRowsRead = sumMetric(allScans, 'RowsRead', 'unique');
   const totalRawRows = sumMetric(allScans, 'RawRowsRead', 'unique');
 
@@ -535,7 +536,7 @@ function renderTableBodyForConfig(scans, metricsConfig, tbodyId, state) {
           value = scan.uniqueMetrics['__MAX_OF_ScanTime'] || null;
         } else if (col.key === 'TotalBytesRead') {
           const cacheBytes = parseNumericValue(scan.uniqueMetrics['DataCacheReadBytes']);
-          const remoteBytes = parseNumericValue(scan.uniqueMetrics['AppIOBytesRead']);
+          const remoteBytes = parseNumericValue(scan.uniqueMetrics['FSIOBytesRead']);
           value = formatBytes(cacheBytes + remoteBytes);
         } else if (col.key === 'CacheHitRate') {
           const cacheBytes = parseNumericValue(scan.uniqueMetrics['DataCacheReadBytes']);
@@ -714,8 +715,8 @@ function sortTableForConfig(th, metricsConfig, theadId, tbodyId, state) {
         valA = parseNumericValue(a.uniqueMetrics['__MAX_OF_ScanTime']);
         valB = parseNumericValue(b.uniqueMetrics['__MAX_OF_ScanTime']);
       } else if (key === 'TotalBytesRead') {
-        valA = parseNumericValue(a.uniqueMetrics['DataCacheReadBytes']) + parseNumericValue(a.uniqueMetrics['AppIOBytesRead']);
-        valB = parseNumericValue(b.uniqueMetrics['DataCacheReadBytes']) + parseNumericValue(b.uniqueMetrics['AppIOBytesRead']);
+        valA = parseNumericValue(a.uniqueMetrics['DataCacheReadBytes']) + parseNumericValue(a.uniqueMetrics['FSIOBytesRead']);
+        valB = parseNumericValue(b.uniqueMetrics['DataCacheReadBytes']) + parseNumericValue(b.uniqueMetrics['FSIOBytesRead']);
       } else if (key === 'CacheHitRate') {
         const cA = parseNumericValue(a.uniqueMetrics['DataCacheReadBytes']), rA = parseNumericValue(a.uniqueMetrics['FSIOBytesRead']);
         const cB = parseNumericValue(b.uniqueMetrics['DataCacheReadBytes']), rB = parseNumericValue(b.uniqueMetrics['FSIOBytesRead']);

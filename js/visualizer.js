@@ -20,6 +20,7 @@ const PAN_STEP = 80;
 
 // Viewport state
 let camera = { x: 0, y: 0, zoom: 1 };
+let layoutDirection = 'vertical'; // 'vertical' for top-to-bottom, 'horizontal' for left-to-right
 let viewportState = {
   isPanning: false,
   isSpacePressed: false,
@@ -142,6 +143,7 @@ export function setupPlanDropZone() {
   document.getElementById('viewportZoomIn')?.addEventListener('click', () => zoomToCenter(ZOOM_STEP, true));
   document.getElementById('viewportZoomOut')?.addEventListener('click', () => zoomToCenter(1 / ZOOM_STEP, true));
   document.getElementById('viewportFit')?.addEventListener('click', () => fitToView(true));
+  document.getElementById('viewportLayout')?.addEventListener('click', toggleLayoutDirection);
 
   // Setup search bar
   setupPlanSearch();
@@ -874,47 +876,58 @@ function renderFromTopology(topology, metricsMap) {
  * Calculate tree layout positions
  */
 function calculateTreeLayout(root, graph) {
-  function calcSubtreeWidth(node, visited = new Set()) {
-    if (visited.has(node.id)) return NODE_WIDTH;
+  const isHorizontal = layoutDirection === 'horizontal';
+  const nodeSizeFlow = isHorizontal ? NODE_WIDTH : NODE_HEIGHT;
+  const nodeSizePerp = isHorizontal ? NODE_HEIGHT : NODE_WIDTH;
+  const spacingFlow = VERTICAL_SPACING;
+  const spacingPerp = HORIZONTAL_SPACING;
+
+  function calcSubtreeSize(node, visited = new Set()) {
+    if (visited.has(node.id)) return nodeSizePerp;
     visited.add(node.id);
     
     if (!node.children || node.children.length === 0) {
-      node._width = NODE_WIDTH;
-      return NODE_WIDTH;
+      node._subtreeSize = nodeSizePerp;
+      return nodeSizePerp;
     }
     
-    let totalWidth = 0;
+    let totalSize = 0;
     node.children.forEach((childId, i) => {
       const child = graph[childId];
       if (child) {
-        totalWidth += calcSubtreeWidth(child, visited);
-        if (i < node.children.length - 1) totalWidth += HORIZONTAL_SPACING;
+        totalSize += calcSubtreeSize(child, visited);
+        if (i < node.children.length - 1) totalSize += spacingPerp;
       }
     });
     
-    node._width = Math.max(NODE_WIDTH, totalWidth);
-    return node._width;
+    node._subtreeSize = Math.max(nodeSizePerp, totalSize);
+    return node._subtreeSize;
   }
   
-  calcSubtreeWidth(root);
+  calcSubtreeSize(root);
   
   const positions = {};
-  let maxY = 0;
+  let maxFlow = 0;
   
-  function assignPositions(node, x, y, visited = new Set()) {
+  function assignPositions(node, flow, perp, visited = new Set()) {
     if (visited.has(node.id)) return;
     visited.add(node.id);
     
-    positions[node.id] = { x: x + (node._width - NODE_WIDTH) / 2, y };
-    maxY = Math.max(maxY, y);
+    const nodePerp = perp + (node._subtreeSize - nodeSizePerp) / 2;
+    if (isHorizontal) {
+      positions[node.id] = { x: flow, y: nodePerp };
+    } else {
+      positions[node.id] = { x: nodePerp, y: flow };
+    }
+    maxFlow = Math.max(maxFlow, flow + nodeSizeFlow);
     
     if (node.children && node.children.length > 0) {
-      let childX = x;
+      let childPerp = perp;
       node.children.forEach(childId => {
         const child = graph[childId];
         if (child) {
-          assignPositions(child, childX, y + NODE_HEIGHT + VERTICAL_SPACING, visited);
-          childX += (child._width || NODE_WIDTH) + HORIZONTAL_SPACING;
+          assignPositions(child, flow + nodeSizeFlow + spacingFlow, childPerp, visited);
+          childPerp += child._subtreeSize + spacingPerp;
         }
       });
     }
@@ -922,7 +935,39 @@ function calculateTreeLayout(root, graph) {
   
   assignPositions(root, 0, 0);
   
-  return { positions, width: root._width, height: maxY + NODE_HEIGHT, root };
+  return { 
+    positions, 
+    width: isHorizontal ? maxFlow : root._subtreeSize, 
+    height: isHorizontal ? root._subtreeSize : maxFlow, 
+    root 
+  };
+}
+
+/**
+ * Toggle layout direction between Vertical and Horizontal
+ */
+export function toggleLayoutDirection() {
+  layoutDirection = layoutDirection === 'vertical' ? 'horizontal' : 'vertical';
+  
+  const btn = document.getElementById('viewportLayout');
+  if (btn) {
+    btn.classList.toggle('active', layoutDirection === 'horizontal');
+  }
+  
+  if (currentGraph && currentRootId !== null) {
+    const root = currentGraph[currentRootId];
+    const layout = calculateTreeLayout(root, currentGraph);
+    renderTreeWithSVG(layout, currentGraph);
+    
+    // Fit to view after layout change
+    requestAnimationFrame(() => fitToView(false));
+    
+    // Re-apply current filter if any
+    const searchInput = document.getElementById('planSearchInput');
+    if (searchInput && searchInput.value) {
+      applyFilter(searchInput.value);
+    }
+  }
 }
 
 /**
@@ -2247,6 +2292,7 @@ function setupPlanSearch() {
 function renderTreeWithSVG(layout, graph) {
   const { positions, width, height, root } = layout;
   const padding = 40;
+  const isHorizontal = layoutDirection === 'horizontal';
   
   if (!root || Object.keys(positions).length === 0) {
     planCanvas.innerHTML = '<div style="padding:2rem;color:var(--danger);">No operators found</div>';
@@ -2278,11 +2324,25 @@ function renderTreeWithSVG(layout, graph) {
     const fromPos = positions[edge.from];
     const toPos = positions[edge.to];
     if (fromPos && toPos) {
-      const x1 = fromPos.x + NODE_WIDTH / 2;
-      const y1 = fromPos.y + NODE_HEIGHT;
-      const x2 = toPos.x + NODE_WIDTH / 2;
-      const y2 = toPos.y;
-      const midY = (y1 + y2) / 2;
+      let x1, y1, x2, y2, c1x, c1y, c2x, c2y;
+      
+      if (isHorizontal) {
+        x1 = fromPos.x + NODE_WIDTH;
+        y1 = fromPos.y + NODE_HEIGHT / 2;
+        x2 = toPos.x;
+        y2 = toPos.y + NODE_HEIGHT / 2;
+        const midX = (x1 + x2) / 2;
+        c1x = midX; c1y = y1;
+        c2x = midX; c2y = y2;
+      } else {
+        x1 = fromPos.x + NODE_WIDTH / 2;
+        y1 = fromPos.y + NODE_HEIGHT;
+        x2 = toPos.x + NODE_WIDTH / 2;
+        y2 = toPos.y;
+        const midY = (y1 + y2) / 2;
+        c1x = x1; c1y = midY;
+        c2x = x2; c2y = midY;
+      }
 
       // Get row count from the child node (source of data flow)
       const childNode = graph[edge.to];
@@ -2294,12 +2354,12 @@ function renderTreeWithSVG(layout, graph) {
 
       // Draw the edge path with weighted width - use CSS variable for stroke
       // Add data attributes for filtering
-      edgeSvg += `<path data-from="${edge.from}" data-to="${edge.to}" d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="var(--text-secondary)" stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round"/>`;
+      edgeSvg += `<path data-from="${edge.from}" data-to="${edge.to}" d="M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}" fill="none" stroke="var(--text-secondary)" stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round"/>`;
 
       if (rowCountFormatted) {
-        // Calculate label position (on the bezier curve, slightly above midpoint)
+        // Calculate label position
         const labelX = (x1 + x2) / 2;
-        const labelY = midY - 5;
+        const labelY = (y1 + y2) / 2 - 5;
         const labelWidth = rowCountFormatted.length * 7 + 12;
 
         // Add data-edge-label for filtering

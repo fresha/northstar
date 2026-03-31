@@ -1477,6 +1477,12 @@ td.skew-danger {
   color: var(--accent);
 }
 
+.canvas-toolbar button.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
 /* Zoom Indicator */
 .zoom-indicator {
   position: absolute;

@@ -48,6 +48,7 @@ let pruningPanelVisible = false;
 let minRowThreshold = 0;
 let hiddenNodeTypes = new Set();
 let availableNodeTypes = new Set();
+let sourceNodeIds = new Set(); // Nodes with no children in original graph
 
 // DOM elements
 let planDropZone, planFileInput, planContainer, planCanvas;
@@ -884,9 +885,13 @@ function renderFromTopology(topology, metricsMap) {
   minRowThreshold = 0;
   hiddenNodeTypes.clear();
   availableNodeTypes.clear();
+  sourceNodeIds.clear();
   for (const node of nodes) {
     const nodeClass = getNodeClass(node.name) || 'other';
     availableNodeTypes.add(nodeClass);
+    if (!node.children || node.children.length === 0) {
+      sourceNodeIds.add(node.id);
+    }
   }
   updateTypeCheckboxes();
   
@@ -919,7 +924,10 @@ function calculateTreeLayout(root, graph) {
     const rowCount = getNodeRowCountNumeric({ metrics: node.metrics });
     const isVolumePruned = minRowThreshold > 0 && rowCount < minRowThreshold;
     
-    node._isPruned = isTypePruned || isVolumePruned;
+    // Protect root (sink) and leaves (sources)
+    const isProtected = node.id === currentRootId || sourceNodeIds.has(node.id);
+    
+    node._isPruned = !isProtected && (isTypePruned || isVolumePruned);
     
     let totalSize = 0;
     let visibleChildrenCount = 0;

@@ -1363,6 +1363,12 @@ function togglePruningPanel() {
 
   pruningPanelVisible = !pruningPanelVisible;
   panel.classList.toggle('collapsed', !pruningPanelVisible);
+
+  // Update toolbar button state
+  const toggleBtn = document.getElementById('togglePruningPanel');
+  if (toggleBtn) {
+    toggleBtn.classList.toggle('active', pruningPanelVisible);
+  }
 }
 
 /**
@@ -1373,8 +1379,12 @@ function setupPruningControls() {
   const sliderValue = document.getElementById('minRowsValue');
   const resetBtn = document.getElementById('resetPruning');
   const panelToggle = document.getElementById('pruningPanelToggle');
+  const toolbarBtn = document.getElementById('togglePruningPanel');
 
   if (!slider) return;
+
+  // Toolbar button click
+  toolbarBtn?.addEventListener('click', togglePruningPanel);
 
   // Slider change
   slider.addEventListener('input', (e) => {
@@ -1400,7 +1410,7 @@ function setupPruningControls() {
     reRenderWithCurrentState();
   });
 
-  // Panel toggle
+  // Panel toggle (close button inside panel)
   panelToggle?.addEventListener('click', togglePruningPanel);
 }
 

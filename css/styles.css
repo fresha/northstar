@@ -1935,8 +1935,8 @@ td.skew-danger {
   gap: 12px;
 }
 
-.metric-label { color: var(--text-secondary); font-size: 11px; }
-.metric-value { color: var(--text-primary); font-size: 11px; font-weight: 500; }
+.metric-label { color: var(--text-secondary); font-size: 11px; flex-shrink: 0; min-width: 80px; text-align: left; }
+.metric-value { color: var(--text-primary); font-size: 11px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 .metric-value.time { color: var(--success); }
 .metric-value.bytes { color: var(--warning); }
 .metric-value.rows { color: var(--info); }

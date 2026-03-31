@@ -2476,31 +2476,58 @@ function renderTreeWithSVG(layout, graph) {
     if (node.children) {
       for (const childId of node.children) {
         const child = graph[childId];
-        if (child && !child._isPruned && positions[childId]) {
+        if (!child) continue;
+
+        if (!child._isPruned && positions[childId]) {
+          // Direct connection to visible child
           edges.push({ from: node.id, to: childId });
           collectEdges(child);
-        } else if (child && child._isPruned) {
-          // If child is pruned, try to connect to its visible descendants
-          findVisibleDescendants(child).forEach(descId => {
-            edges.push({ from: node.id, to: descId });
+        } else {
+          // Child is pruned - find its visible descendants
+          const visibleDescendants = findVisibleDescendants(child);
+          visibleDescendants.forEach(descId => {
+            edges.push({ from: node.id, to: descId, isDashed: true });
           });
-          // Still need to traverse pruned children to find visible ones further down
-          collectEdges(child);
+          
+          // Still need to traverse pruned subtree to continue finding edges from visible nodes within it
+          // But we need a different visited tracking for the pruned traversal to not block other paths
+          traversePrunedSubtree(child, node.id);
         }
+      }
+    }
+  }
+
+  function traversePrunedSubtree(prunedNode, lastVisibleParentId) {
+    if (!prunedNode.children) return;
+    for (const childId of prunedNode.children) {
+      const child = graph[childId];
+      if (!child) continue;
+      
+      if (!child._isPruned && positions[childId]) {
+        // We already added this edge in collectEdges or a previous recursive call
+        collectEdges(child);
+      } else {
+        traversePrunedSubtree(child, lastVisibleParentId);
       }
     }
   }
 
   function findVisibleDescendants(prunedNode) {
     const visible = [];
-    if (!prunedNode.children) return visible;
-    for (const childId of prunedNode.children) {
-      const child = graph[childId];
-      if (child) {
-        if (!child._isPruned && positions[childId]) {
-          visible.push(childId);
-        } else {
-          visible.push(...findVisibleDescendants(child));
+    const stack = [prunedNode];
+    const seen = new Set();
+
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (seen.has(current.id)) continue;
+      seen.add(current.id);
+
+      if (!current._isPruned && positions[current.id]) {
+        visible.push(current.id);
+      } else if (current.children) {
+        for (const childId of current.children) {
+          const child = graph[childId];
+          if (child) stack.push(child);
         }
       }
     }
@@ -2544,7 +2571,11 @@ function renderTreeWithSVG(layout, graph) {
 
       // Draw the edge path with weighted width - use CSS variable for stroke
       // Add data attributes for filtering
-      edgeSvg += `<path data-from="${edge.from}" data-to="${edge.to}" d="M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}" fill="none" stroke="var(--text-secondary)" stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round"/>`;
+      const dashAttr = edge.isDashed ? 'stroke-dasharray="4 4"' : '';
+      const colorAttr = edge.isDashed ? 'stroke="var(--text-secondary)"' : 'stroke="var(--text-secondary)"';
+      const opacityAttr = edge.isDashed ? 'opacity="0.6"' : 'opacity="1"';
+
+      edgeSvg += `<path data-from="${edge.from}" data-to="${edge.to}" d="M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}" fill="none" ${colorAttr} stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round" ${dashAttr} ${opacityAttr}/>`;
 
       if (rowCountFormatted) {
         // Calculate label position

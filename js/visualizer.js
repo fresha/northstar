@@ -913,44 +913,43 @@ function calculateTreeLayout(root, graph) {
     
     // Check if node is pruned by type
     const nodeClass = getNodeClass(node.name) || 'other';
-    if (hiddenNodeTypes.has(nodeClass)) {
-      node._isPruned = true;
-      return 0;
-    }
+    const isTypePruned = hiddenNodeTypes.has(nodeClass);
 
-    // Check if node is pruned by volume (minRowsThreshold)
+    // Check if node is pruned by volume
     const rowCount = getNodeRowCountNumeric({ metrics: node.metrics });
-    if (minRowThreshold > 0 && rowCount < minRowThreshold) {
-      node._isPruned = true;
-      return 0;
-    }
+    const isVolumePruned = minRowThreshold > 0 && rowCount < minRowThreshold;
     
-    node._isPruned = false;
-    
-    if (!node.children || node.children.length === 0) {
-      node._subtreeSize = nodeSizePerp;
-      return nodeSizePerp;
-    }
+    node._isPruned = isTypePruned || isVolumePruned;
     
     let totalSize = 0;
     let visibleChildrenCount = 0;
-    node.children.forEach((childId) => {
-      const child = graph[childId];
-      if (child) {
-        const size = calcSubtreeSize(child, visited);
-        if (!child._isPruned) {
-          totalSize += size;
-          visibleChildrenCount++;
+    
+    if (node.children && node.children.length > 0) {
+      node.children.forEach((childId) => {
+        const child = graph[childId];
+        if (child) {
+          const size = calcSubtreeSize(child, visited);
+          if (size > 0) {
+            totalSize += size;
+            visibleChildrenCount++;
+          }
         }
-      }
-    });
+      });
+    }
     
     if (visibleChildrenCount > 1) {
       totalSize += (visibleChildrenCount - 1) * spacingPerp;
     }
     
-    node._subtreeSize = Math.max(nodeSizePerp, totalSize);
-    return node._subtreeSize;
+    // If this node is visible, its subtree size is max(nodeSize, childrenSize)
+    // If it's pruned, its subtree size is JUST the children's size
+    if (!node._isPruned) {
+      node._subtreeSize = Math.max(nodeSizePerp, totalSize);
+      return node._subtreeSize;
+    } else {
+      node._subtreeSize = totalSize;
+      return totalSize;
+    }
   }
   
   calcSubtreeSize(root);
@@ -959,24 +958,31 @@ function calculateTreeLayout(root, graph) {
   let maxFlow = 0;
   
   function assignPositions(node, flow, perp, visited = new Set()) {
-    if (visited.has(node.id) || node._isPruned) return;
+    if (visited.has(node.id)) return;
     visited.add(node.id);
     
-    const nodePerp = perp + (node._subtreeSize - nodeSizePerp) / 2;
-    if (isHorizontal) {
-      positions[node.id] = { x: flow, y: nodePerp };
-    } else {
-      positions[node.id] = { x: nodePerp, y: flow };
+    let nextFlow = flow;
+    let childPerp = perp;
+
+    if (!node._isPruned) {
+      const nodePerp = perp + (node._subtreeSize - nodeSizePerp) / 2;
+      if (isHorizontal) {
+        positions[node.id] = { x: flow, y: nodePerp };
+      } else {
+        positions[node.id] = { x: nodePerp, y: flow };
+      }
+      maxFlow = Math.max(maxFlow, flow + nodeSizeFlow);
+      nextFlow = flow + nodeSizeFlow + spacingFlow;
+      // When visible, children are centered within our subtree size
+      // but we need to reset perp for children relative to our start
     }
-    maxFlow = Math.max(maxFlow, flow + nodeSizeFlow);
-    
+
     if (node.children && node.children.length > 0) {
-      let childPerp = perp;
       node.children.forEach(childId => {
         const child = graph[childId];
-        if (child && !child._isPruned) {
-          assignPositions(child, flow + nodeSizeFlow + spacingFlow, childPerp, visited);
-          childPerp += child._subtreeSize + (child._subtreeSize > 0 ? spacingPerp : 0);
+        if (child && child._subtreeSize > 0) {
+          assignPositions(child, nextFlow, childPerp, visited);
+          childPerp += child._subtreeSize + spacingPerp;
         }
       });
     }
@@ -2447,7 +2453,7 @@ function renderTreeWithSVG(layout, graph) {
   const padding = 40;
   const isHorizontal = layoutDirection === 'horizontal';
   
-  if (!root || Object.keys(positions).length === 0) {
+  if (!root || (Object.keys(positions).length === 0 && !root._isPruned)) {
     planCanvas.innerHTML = '<div style="padding:2rem;color:var(--danger);">No operators found</div>';
     return;
   }

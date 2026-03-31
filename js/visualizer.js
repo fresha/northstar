@@ -43,6 +43,12 @@ let currentParentMap = null;  // Cached parent map for upstream traversal
 let slowestPanelVisible = false;
 let rankedOperators = [];
 
+// Pruning state
+let pruningPanelVisible = false;
+let minRowThreshold = 0;
+let hiddenNodeTypes = new Set();
+let availableNodeTypes = new Set();
+
 // DOM elements
 let planDropZone, planFileInput, planContainer, planCanvas;
 
@@ -147,6 +153,9 @@ export function setupPlanDropZone() {
 
   // Setup search bar
   setupPlanSearch();
+  
+  // Setup pruning bar
+  setupPruningControls();
 }
 
 /**
@@ -870,6 +879,22 @@ function renderFromTopology(topology, metricsMap) {
 
   // Clear any previous filter
   clearFilter();
+
+  // Reset pruning state and determine types
+  minRowThreshold = 0;
+  hiddenNodeTypes.clear();
+  availableNodeTypes.clear();
+  for (const node of nodes) {
+    const nodeClass = getNodeClass(node.name) || 'other';
+    availableNodeTypes.add(nodeClass);
+  }
+  updateTypeCheckboxes();
+  
+  // Reset UI
+  const slider = document.getElementById('minRowsSlider');
+  const sliderVal = document.getElementById('minRowsValue');
+  if (slider) slider.value = 0;
+  if (sliderVal) sliderVal.textContent = 'All';
 }
 
 /**
@@ -886,19 +911,43 @@ function calculateTreeLayout(root, graph) {
     if (visited.has(node.id)) return nodeSizePerp;
     visited.add(node.id);
     
+    // Check if node is pruned by type
+    const nodeClass = getNodeClass(node.name) || 'other';
+    if (hiddenNodeTypes.has(nodeClass)) {
+      node._isPruned = true;
+      return 0;
+    }
+
+    // Check if node is pruned by volume (minRowsThreshold)
+    const rowCount = getNodeRowCountNumeric({ metrics: node.metrics });
+    if (minRowThreshold > 0 && rowCount < minRowThreshold) {
+      node._isPruned = true;
+      return 0;
+    }
+    
+    node._isPruned = false;
+    
     if (!node.children || node.children.length === 0) {
       node._subtreeSize = nodeSizePerp;
       return nodeSizePerp;
     }
     
     let totalSize = 0;
-    node.children.forEach((childId, i) => {
+    let visibleChildrenCount = 0;
+    node.children.forEach((childId) => {
       const child = graph[childId];
       if (child) {
-        totalSize += calcSubtreeSize(child, visited);
-        if (i < node.children.length - 1) totalSize += spacingPerp;
+        const size = calcSubtreeSize(child, visited);
+        if (!child._isPruned) {
+          totalSize += size;
+          visibleChildrenCount++;
+        }
       }
     });
+    
+    if (visibleChildrenCount > 1) {
+      totalSize += (visibleChildrenCount - 1) * spacingPerp;
+    }
     
     node._subtreeSize = Math.max(nodeSizePerp, totalSize);
     return node._subtreeSize;
@@ -910,7 +959,7 @@ function calculateTreeLayout(root, graph) {
   let maxFlow = 0;
   
   function assignPositions(node, flow, perp, visited = new Set()) {
-    if (visited.has(node.id)) return;
+    if (visited.has(node.id) || node._isPruned) return;
     visited.add(node.id);
     
     const nodePerp = perp + (node._subtreeSize - nodeSizePerp) / 2;
@@ -925,9 +974,9 @@ function calculateTreeLayout(root, graph) {
       let childPerp = perp;
       node.children.forEach(childId => {
         const child = graph[childId];
-        if (child) {
+        if (child && !child._isPruned) {
           assignPositions(child, flow + nodeSizeFlow + spacingFlow, childPerp, visited);
-          childPerp += child._subtreeSize + spacingPerp;
+          childPerp += child._subtreeSize + (child._subtreeSize > 0 ? spacingPerp : 0);
         }
       });
     }
@@ -1303,6 +1352,100 @@ function toggleSlowestPanel() {
   if (toggleBtn) {
     toggleBtn.classList.toggle('active', slowestPanelVisible);
   }
+}
+
+/**
+ * Toggle the pruning panel visibility
+ */
+function togglePruningPanel() {
+  const panel = document.getElementById('pruningPanel');
+  if (!panel) return;
+
+  pruningPanelVisible = !pruningPanelVisible;
+  panel.classList.toggle('collapsed', !pruningPanelVisible);
+}
+
+/**
+ * Setup pruning panel event handlers
+ */
+function setupPruningControls() {
+  const slider = document.getElementById('minRowsSlider');
+  const sliderValue = document.getElementById('minRowsValue');
+  const resetBtn = document.getElementById('resetPruning');
+  const panelToggle = document.getElementById('pruningPanelToggle');
+
+  if (!slider) return;
+
+  // Slider change
+  slider.addEventListener('input', (e) => {
+    const logVal = parseInt(e.target.value);
+    // 0: All, 1: 10, 2: 100, 3: 1K, 4: 10K, 5: 100K, 6: 1M, 7: 10M
+    if (logVal === 0) {
+      minRowThreshold = 0;
+      sliderValue.textContent = 'All';
+    } else {
+      minRowThreshold = Math.pow(10, logVal);
+      sliderValue.textContent = formatRowCount(minRowThreshold);
+    }
+    reRenderWithCurrentState();
+  });
+
+  // Reset button
+  resetBtn?.addEventListener('click', () => {
+    minRowThreshold = 0;
+    hiddenNodeTypes.clear();
+    slider.value = 0;
+    sliderValue.textContent = 'All';
+    updateTypeCheckboxes();
+    reRenderWithCurrentState();
+  });
+
+  // Panel toggle
+  panelToggle?.addEventListener('click', togglePruningPanel);
+}
+
+/**
+ * Re-render the tree with current pruning and filter state
+ */
+function reRenderWithCurrentState() {
+  if (!currentGraph || currentRootId === null) return;
+  const root = currentGraph[currentRootId];
+  const layout = calculateTreeLayout(root, currentGraph);
+  renderTreeWithSVG(layout, currentGraph);
+}
+
+/**
+ * Update the type-filter checkboxes in the pruning panel
+ */
+function updateTypeCheckboxes() {
+  const grid = document.getElementById('typeFiltersGrid');
+  if (!grid) return;
+
+  const sortedTypes = Array.from(availableNodeTypes).sort();
+  
+  grid.innerHTML = sortedTypes.map(type => {
+    const checked = !hiddenNodeTypes.has(type);
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
+    return `
+      <label class="type-filter-item">
+        <input type="checkbox" data-type="${type}" ${checked ? 'checked' : ''}>
+        <span>${label}</span>
+      </label>
+    `;
+  }).join('');
+
+  // Add listeners
+  grid.querySelectorAll('input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const type = e.target.dataset.type;
+      if (e.target.checked) {
+        hiddenNodeTypes.delete(type);
+      } else {
+        hiddenNodeTypes.add(type);
+      }
+      reRenderWithCurrentState();
+    });
+  });
 }
 
 // Expose toggle function globally for the panel close button
@@ -2304,17 +2447,40 @@ function renderTreeWithSVG(layout, graph) {
   const visited = new Set();
   
   function collectEdges(node) {
-    if (visited.has(node.id)) return;
+    if (visited.has(node.id) || node._isPruned) return;
     visited.add(node.id);
     if (node.children) {
       for (const childId of node.children) {
         const child = graph[childId];
-        if (child && positions[childId]) {
+        if (child && !child._isPruned && positions[childId]) {
           edges.push({ from: node.id, to: childId });
+          collectEdges(child);
+        } else if (child && child._isPruned) {
+          // If child is pruned, try to connect to its visible descendants
+          findVisibleDescendants(child).forEach(descId => {
+            edges.push({ from: node.id, to: descId });
+          });
+          // Still need to traverse pruned children to find visible ones further down
           collectEdges(child);
         }
       }
     }
+  }
+
+  function findVisibleDescendants(prunedNode) {
+    const visible = [];
+    if (!prunedNode.children) return visible;
+    for (const childId of prunedNode.children) {
+      const child = graph[childId];
+      if (child) {
+        if (!child._isPruned && positions[childId]) {
+          visible.push(childId);
+        } else {
+          visible.push(...findVisibleDescendants(child));
+        }
+      }
+    }
+    return visible;
   }
   collectEdges(root);
   
@@ -2377,7 +2543,7 @@ function renderTreeWithSVG(layout, graph) {
 
   for (const [id, pos] of Object.entries(positions)) {
     const node = graph[id];
-    if (!node) continue;
+    if (!node || node._isPruned) continue;
 
     const nodeClass = getNodeClass(node.name);
     const displayName = node.name.length > 18 ? node.name.substring(0, 16) + '...' : node.name;

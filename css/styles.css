@@ -3493,6 +3493,41 @@ td.skew-danger {
   color: var(--text-secondary);
 }
 
+.pruning-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.type-filters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.type-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.type-filter-item input {
+  cursor: pointer;
+}
+
+.type-filter-item:hover {
+  color: var(--accent);
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
 .slowest-panel-toggle {
   background: transparent;
   border: none;

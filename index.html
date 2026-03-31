@@ -437,6 +437,32 @@
           <span class="filter-summary-divider">•</span>
           <span class="filter-summary-time" id="filterSummaryTime">0ms</span>
         </div>
+        <!-- Pruning Controls -->
+        <div class="slowest-panel collapsed" id="pruningPanel" style="top: 360px; height: auto; max-height: 400px;">
+          <div class="slowest-panel-header">
+            <span>Pruning & Filters</span>
+            <button class="slowest-panel-toggle" id="pruningPanelToggle" title="Collapse panel">×</button>
+          </div>
+          <div class="slowest-panel-content" style="padding: 12px;">
+            <div class="pruning-section">
+              <label class="pruning-label">Min Row Volume</label>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <input type="range" id="minRowsSlider" min="0" max="7" step="1" value="0" style="flex: 1;">
+                <span id="minRowsValue" style="font-size: 10px; min-width: 35px; color: var(--accent);">All</span>
+              </div>
+            </div>
+            
+            <div class="pruning-section">
+              <label class="pruning-label">Hide Operator Types</label>
+              <div class="type-filters-grid" id="typeFiltersGrid">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <button id="resetPruning" style="width: 100%; margin-top: 12px; padding: 6px; font-size: 10px; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; border-radius: 4px;">Reset All</button>
+          </div>
+        </div>
+
         <!-- Slowest Operators Panel -->
         <div class="slowest-panel collapsed" id="slowestPanel">
           <div class="slowest-panel-header">

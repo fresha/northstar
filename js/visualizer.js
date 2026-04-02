@@ -20,6 +20,7 @@ const PAN_STEP = 80;
 
 // Viewport state
 let camera = { x: 0, y: 0, zoom: 1 };
+let layoutDirection = 'vertical'; // 'vertical' for top-to-bottom, 'horizontal' for left-to-right
 let viewportState = {
   isPanning: false,
   isSpacePressed: false,
@@ -41,6 +42,13 @@ let currentParentMap = null;  // Cached parent map for upstream traversal
 // Slowest operators panel state
 let slowestPanelVisible = false;
 let rankedOperators = [];
+
+// Pruning state
+let pruningPanelVisible = false;
+let minRowThreshold = 0;
+let hiddenNodeTypes = new Set();
+let availableNodeTypes = new Set();
+let sourceNodeIds = new Set(); // Nodes with no children in original graph
 
 // DOM elements
 let planDropZone, planFileInput, planContainer, planCanvas;
@@ -142,9 +150,13 @@ export function setupPlanDropZone() {
   document.getElementById('viewportZoomIn')?.addEventListener('click', () => zoomToCenter(ZOOM_STEP, true));
   document.getElementById('viewportZoomOut')?.addEventListener('click', () => zoomToCenter(1 / ZOOM_STEP, true));
   document.getElementById('viewportFit')?.addEventListener('click', () => fitToView(true));
+  document.getElementById('viewportLayout')?.addEventListener('click', toggleLayoutDirection);
 
   // Setup search bar
   setupPlanSearch();
+  
+  // Setup pruning bar
+  setupPruningControls();
 }
 
 /**
@@ -868,53 +880,117 @@ function renderFromTopology(topology, metricsMap) {
 
   // Clear any previous filter
   clearFilter();
+
+  // Reset pruning state and determine types
+  minRowThreshold = 0;
+  hiddenNodeTypes.clear();
+  availableNodeTypes.clear();
+  sourceNodeIds.clear();
+  for (const node of nodes) {
+    const nodeClass = getNodeClass(node.name) || 'other';
+    availableNodeTypes.add(nodeClass);
+    if (!node.children || node.children.length === 0) {
+      sourceNodeIds.add(node.id);
+    }
+  }
+  updateTypeCheckboxes();
+  
+  // Reset UI
+  const slider = document.getElementById('minRowsSlider');
+  const sliderVal = document.getElementById('minRowsValue');
+  if (slider) slider.value = 0;
+  if (sliderVal) sliderVal.textContent = 'All';
 }
 
 /**
  * Calculate tree layout positions
  */
 function calculateTreeLayout(root, graph) {
-  function calcSubtreeWidth(node, visited = new Set()) {
-    if (visited.has(node.id)) return NODE_WIDTH;
+  const isHorizontal = layoutDirection === 'horizontal';
+  const nodeSizeFlow = isHorizontal ? NODE_WIDTH : NODE_HEIGHT;
+  const nodeSizePerp = isHorizontal ? NODE_HEIGHT : NODE_WIDTH;
+  const spacingFlow = VERTICAL_SPACING;
+  const spacingPerp = HORIZONTAL_SPACING;
+
+  function calcSubtreeSize(node, visited = new Set()) {
+    if (visited.has(node.id)) return nodeSizePerp;
     visited.add(node.id);
     
-    if (!node.children || node.children.length === 0) {
-      node._width = NODE_WIDTH;
-      return NODE_WIDTH;
+    // Check if node is pruned by type
+    const nodeClass = getNodeClass(node.name) || 'other';
+    const isTypePruned = hiddenNodeTypes.has(nodeClass);
+
+    // Check if node is pruned by volume
+    const rowCount = getNodeRowCountNumeric({ metrics: node.metrics });
+    const isVolumePruned = minRowThreshold > 0 && rowCount < minRowThreshold;
+    
+    // Protect root (sink) and leaves (sources)
+    const isProtected = node.id === currentRootId || sourceNodeIds.has(node.id);
+    
+    node._isPruned = !isProtected && (isTypePruned || isVolumePruned);
+    
+    let totalSize = 0;
+    let visibleChildrenCount = 0;
+    
+    if (node.children && node.children.length > 0) {
+      node.children.forEach((childId) => {
+        const child = graph[childId];
+        if (child) {
+          const size = calcSubtreeSize(child, visited);
+          if (size > 0) {
+            totalSize += size;
+            visibleChildrenCount++;
+          }
+        }
+      });
     }
     
-    let totalWidth = 0;
-    node.children.forEach((childId, i) => {
-      const child = graph[childId];
-      if (child) {
-        totalWidth += calcSubtreeWidth(child, visited);
-        if (i < node.children.length - 1) totalWidth += HORIZONTAL_SPACING;
-      }
-    });
+    if (visibleChildrenCount > 1) {
+      totalSize += (visibleChildrenCount - 1) * spacingPerp;
+    }
     
-    node._width = Math.max(NODE_WIDTH, totalWidth);
-    return node._width;
+    // If this node is visible, its subtree size is max(nodeSize, childrenSize)
+    // If it's pruned, its subtree size is JUST the children's size
+    if (!node._isPruned) {
+      node._subtreeSize = Math.max(nodeSizePerp, totalSize);
+      return node._subtreeSize;
+    } else {
+      node._subtreeSize = totalSize;
+      return totalSize;
+    }
   }
   
-  calcSubtreeWidth(root);
+  calcSubtreeSize(root);
   
   const positions = {};
-  let maxY = 0;
+  let maxFlow = 0;
   
-  function assignPositions(node, x, y, visited = new Set()) {
+  function assignPositions(node, flow, perp, visited = new Set()) {
     if (visited.has(node.id)) return;
     visited.add(node.id);
     
-    positions[node.id] = { x: x + (node._width - NODE_WIDTH) / 2, y };
-    maxY = Math.max(maxY, y);
-    
+    let nextFlow = flow;
+    let childPerp = perp;
+
+    if (!node._isPruned) {
+      const nodePerp = perp + (node._subtreeSize - nodeSizePerp) / 2;
+      if (isHorizontal) {
+        positions[node.id] = { x: flow, y: nodePerp };
+      } else {
+        positions[node.id] = { x: nodePerp, y: flow };
+      }
+      maxFlow = Math.max(maxFlow, flow + nodeSizeFlow);
+      nextFlow = flow + nodeSizeFlow + spacingFlow;
+      // When visible, children are centered within our subtree size
+      // but we need to reset perp for children relative to our start
+    }
+
     if (node.children && node.children.length > 0) {
-      let childX = x;
       node.children.forEach(childId => {
         const child = graph[childId];
-        if (child) {
-          assignPositions(child, childX, y + NODE_HEIGHT + VERTICAL_SPACING, visited);
-          childX += (child._width || NODE_WIDTH) + HORIZONTAL_SPACING;
+        if (child && child._subtreeSize > 0) {
+          assignPositions(child, nextFlow, childPerp, visited);
+          childPerp += child._subtreeSize + spacingPerp;
         }
       });
     }
@@ -922,7 +998,39 @@ function calculateTreeLayout(root, graph) {
   
   assignPositions(root, 0, 0);
   
-  return { positions, width: root._width, height: maxY + NODE_HEIGHT, root };
+  return { 
+    positions, 
+    width: isHorizontal ? maxFlow : root._subtreeSize, 
+    height: isHorizontal ? root._subtreeSize : maxFlow, 
+    root 
+  };
+}
+
+/**
+ * Toggle layout direction between Vertical and Horizontal
+ */
+export function toggleLayoutDirection() {
+  layoutDirection = layoutDirection === 'vertical' ? 'horizontal' : 'vertical';
+  
+  const btn = document.getElementById('viewportLayout');
+  if (btn) {
+    btn.classList.toggle('active', layoutDirection === 'horizontal');
+  }
+  
+  if (currentGraph && currentRootId !== null) {
+    const root = currentGraph[currentRootId];
+    const layout = calculateTreeLayout(root, currentGraph);
+    renderTreeWithSVG(layout, currentGraph);
+    
+    // Fit to view after layout change
+    requestAnimationFrame(() => fitToView(false));
+    
+    // Re-apply current filter if any
+    const searchInput = document.getElementById('planSearchInput');
+    if (searchInput && searchInput.value) {
+      applyFilter(searchInput.value);
+    }
+  }
 }
 
 /**
@@ -1258,6 +1366,110 @@ function toggleSlowestPanel() {
   if (toggleBtn) {
     toggleBtn.classList.toggle('active', slowestPanelVisible);
   }
+}
+
+/**
+ * Toggle the pruning panel visibility
+ */
+function togglePruningPanel() {
+  const panel = document.getElementById('pruningPanel');
+  if (!panel) return;
+
+  pruningPanelVisible = !pruningPanelVisible;
+  panel.classList.toggle('collapsed', !pruningPanelVisible);
+
+  // Update toolbar button state
+  const toggleBtn = document.getElementById('togglePruningPanel');
+  if (toggleBtn) {
+    toggleBtn.classList.toggle('active', pruningPanelVisible);
+  }
+}
+
+/**
+ * Setup pruning panel event handlers
+ */
+function setupPruningControls() {
+  const slider = document.getElementById('minRowsSlider');
+  const sliderValue = document.getElementById('minRowsValue');
+  const resetBtn = document.getElementById('resetPruning');
+  const panelToggle = document.getElementById('pruningPanelToggle');
+  const toolbarBtn = document.getElementById('togglePruningPanel');
+
+  if (!slider) return;
+
+  // Toolbar button click
+  toolbarBtn?.addEventListener('click', togglePruningPanel);
+
+  // Slider change
+  slider.addEventListener('input', (e) => {
+    const logVal = parseInt(e.target.value);
+    // 0: All, 1: 10, 2: 100, 3: 1K, 4: 10K, 5: 100K, 6: 1M, 7: 10M
+    if (logVal === 0) {
+      minRowThreshold = 0;
+      sliderValue.textContent = 'All';
+    } else {
+      minRowThreshold = Math.pow(10, logVal);
+      sliderValue.textContent = formatRowCount(minRowThreshold);
+    }
+    reRenderWithCurrentState();
+  });
+
+  // Reset button
+  resetBtn?.addEventListener('click', () => {
+    minRowThreshold = 0;
+    hiddenNodeTypes.clear();
+    slider.value = 0;
+    sliderValue.textContent = 'All';
+    updateTypeCheckboxes();
+    reRenderWithCurrentState();
+  });
+
+  // Panel toggle (close button inside panel)
+  panelToggle?.addEventListener('click', togglePruningPanel);
+}
+
+/**
+ * Re-render the tree with current pruning and filter state
+ */
+function reRenderWithCurrentState() {
+  if (!currentGraph || currentRootId === null) return;
+  const root = currentGraph[currentRootId];
+  const layout = calculateTreeLayout(root, currentGraph);
+  renderTreeWithSVG(layout, currentGraph);
+}
+
+/**
+ * Update the type-filter checkboxes in the pruning panel
+ */
+function updateTypeCheckboxes() {
+  const grid = document.getElementById('typeFiltersGrid');
+  if (!grid) return;
+
+  const sortedTypes = Array.from(availableNodeTypes).sort();
+  
+  grid.innerHTML = sortedTypes.map(type => {
+    const checked = !hiddenNodeTypes.has(type);
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
+    return `
+      <label class="type-filter-item">
+        <input type="checkbox" data-type="${type}" ${checked ? 'checked' : ''}>
+        <span>${label}</span>
+      </label>
+    `;
+  }).join('');
+
+  // Add listeners
+  grid.querySelectorAll('input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const type = e.target.dataset.type;
+      if (e.target.checked) {
+        hiddenNodeTypes.delete(type);
+      } else {
+        hiddenNodeTypes.add(type);
+      }
+      reRenderWithCurrentState();
+    });
+  });
 }
 
 // Expose toggle function globally for the panel close button
@@ -2247,8 +2459,9 @@ function setupPlanSearch() {
 function renderTreeWithSVG(layout, graph) {
   const { positions, width, height, root } = layout;
   const padding = 40;
+  const isHorizontal = layoutDirection === 'horizontal';
   
-  if (!root || Object.keys(positions).length === 0) {
+  if (!root || (Object.keys(positions).length === 0 && !root._isPruned)) {
     planCanvas.innerHTML = '<div style="padding:2rem;color:var(--danger);">No operators found</div>';
     return;
   }
@@ -2258,17 +2471,67 @@ function renderTreeWithSVG(layout, graph) {
   const visited = new Set();
   
   function collectEdges(node) {
-    if (visited.has(node.id)) return;
+    if (visited.has(node.id) || node._isPruned) return;
     visited.add(node.id);
     if (node.children) {
       for (const childId of node.children) {
         const child = graph[childId];
-        if (child && positions[childId]) {
+        if (!child) continue;
+
+        if (!child._isPruned && positions[childId]) {
+          // Direct connection to visible child
           edges.push({ from: node.id, to: childId });
           collectEdges(child);
+        } else {
+          // Child is pruned - find its visible descendants
+          const visibleDescendants = findVisibleDescendants(child);
+          visibleDescendants.forEach(descId => {
+            edges.push({ from: node.id, to: descId, isDashed: true });
+          });
+          
+          // Still need to traverse pruned subtree to continue finding edges from visible nodes within it
+          // But we need a different visited tracking for the pruned traversal to not block other paths
+          traversePrunedSubtree(child, node.id);
         }
       }
     }
+  }
+
+  function traversePrunedSubtree(prunedNode, lastVisibleParentId) {
+    if (!prunedNode.children) return;
+    for (const childId of prunedNode.children) {
+      const child = graph[childId];
+      if (!child) continue;
+      
+      if (!child._isPruned && positions[childId]) {
+        // We already added this edge in collectEdges or a previous recursive call
+        collectEdges(child);
+      } else {
+        traversePrunedSubtree(child, lastVisibleParentId);
+      }
+    }
+  }
+
+  function findVisibleDescendants(prunedNode) {
+    const visible = [];
+    const stack = [prunedNode];
+    const seen = new Set();
+
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (seen.has(current.id)) continue;
+      seen.add(current.id);
+
+      if (!current._isPruned && positions[current.id]) {
+        visible.push(current.id);
+      } else if (current.children) {
+        for (const childId of current.children) {
+          const child = graph[childId];
+          if (child) stack.push(child);
+        }
+      }
+    }
+    return visible;
   }
   collectEdges(root);
   
@@ -2278,11 +2541,25 @@ function renderTreeWithSVG(layout, graph) {
     const fromPos = positions[edge.from];
     const toPos = positions[edge.to];
     if (fromPos && toPos) {
-      const x1 = fromPos.x + NODE_WIDTH / 2;
-      const y1 = fromPos.y + NODE_HEIGHT;
-      const x2 = toPos.x + NODE_WIDTH / 2;
-      const y2 = toPos.y;
-      const midY = (y1 + y2) / 2;
+      let x1, y1, x2, y2, c1x, c1y, c2x, c2y;
+      
+      if (isHorizontal) {
+        x1 = fromPos.x + NODE_WIDTH;
+        y1 = fromPos.y + NODE_HEIGHT / 2;
+        x2 = toPos.x;
+        y2 = toPos.y + NODE_HEIGHT / 2;
+        const midX = (x1 + x2) / 2;
+        c1x = midX; c1y = y1;
+        c2x = midX; c2y = y2;
+      } else {
+        x1 = fromPos.x + NODE_WIDTH / 2;
+        y1 = fromPos.y + NODE_HEIGHT;
+        x2 = toPos.x + NODE_WIDTH / 2;
+        y2 = toPos.y;
+        const midY = (y1 + y2) / 2;
+        c1x = x1; c1y = midY;
+        c2x = x2; c2y = midY;
+      }
 
       // Get row count from the child node (source of data flow)
       const childNode = graph[edge.to];
@@ -2294,12 +2571,16 @@ function renderTreeWithSVG(layout, graph) {
 
       // Draw the edge path with weighted width - use CSS variable for stroke
       // Add data attributes for filtering
-      edgeSvg += `<path data-from="${edge.from}" data-to="${edge.to}" d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="var(--text-secondary)" stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round"/>`;
+      const dashAttr = edge.isDashed ? 'stroke-dasharray="4 4"' : '';
+      const colorAttr = edge.isDashed ? 'stroke="var(--text-secondary)"' : 'stroke="var(--text-secondary)"';
+      const opacityAttr = edge.isDashed ? 'opacity="0.6"' : 'opacity="1"';
+
+      edgeSvg += `<path data-from="${edge.from}" data-to="${edge.to}" d="M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}" fill="none" ${colorAttr} stroke-width="${strokeWidth.toFixed(1)}" stroke-linecap="round" ${dashAttr} ${opacityAttr}/>`;
 
       if (rowCountFormatted) {
-        // Calculate label position (on the bezier curve, slightly above midpoint)
+        // Calculate label position
         const labelX = (x1 + x2) / 2;
-        const labelY = midY - 5;
+        const labelY = (y1 + y2) / 2 - 5;
         const labelWidth = rowCountFormatted.length * 7 + 12;
 
         // Add data-edge-label for filtering
@@ -2317,7 +2598,7 @@ function renderTreeWithSVG(layout, graph) {
 
   for (const [id, pos] of Object.entries(positions)) {
     const node = graph[id];
-    if (!node) continue;
+    if (!node || node._isPruned) continue;
 
     const nodeClass = getNodeClass(node.name);
     const displayName = node.name.length > 18 ? node.name.substring(0, 16) + '...' : node.name;

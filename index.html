@@ -388,6 +388,17 @@
               <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
             </svg>
           </button>
+          <button id="viewportLayout" title="Toggle Layout (Vertical/Horizontal)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1 4.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13a.5.5 0 0 1-.5-.5zM1 8a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 8zm.5 3.5a.5.5 0 0 0 0 1h13a.5.5 0 0 0 0-1h-13z"/>
+              <path d="M4 1.5a.5.5 0 0 0-1 0v13a.5.5 0 0 0 1 0v-13zM8 1.5a.5.5 0 0 0-1 0v13a.5.5 0 0 0 1 0v-13zm4.5-.5a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-1 0v-13a.5.5 0 0 1 .5-.5z" opacity="0.3"/>
+            </svg>
+          </button>
+          <button id="togglePruningPanel" title="Toggle pruning & filters">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/>
+            </svg>
+          </button>
           <button id="toggleSlowestPanel" title="Toggle slowest operators panel">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M4 11a1 1 0 1 1 2 0v4a1 1 0 1 1-2 0v-4zm6-6a1 1 0 1 1 2 0v10a1 1 0 1 1-2 0V5zM7 7a1 1 0 0 1 2 0v8a1 1 0 1 1-2 0V7zm-6 4a1 1 0 1 1 2 0v4a1 1 0 1 1-2 0v-4z"/>
@@ -431,6 +442,32 @@
           <span class="filter-summary-divider">•</span>
           <span class="filter-summary-time" id="filterSummaryTime">0ms</span>
         </div>
+        <!-- Pruning Controls -->
+        <div class="slowest-panel collapsed" id="pruningPanel" style="top: 80px; height: auto; max-height: calc(100% - 104px); z-index: 400;">
+          <div class="slowest-panel-header">
+            <span>Pruning & Filters</span>
+            <button class="slowest-panel-toggle" id="pruningPanelToggle" title="Collapse panel">×</button>
+          </div>
+          <div class="slowest-panel-content" style="padding: 12px;">
+            <div class="pruning-section">
+              <label class="pruning-label">Min Row Volume</label>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <input type="range" id="minRowsSlider" min="0" max="7" step="1" value="0" style="flex: 1;">
+                <span id="minRowsValue" style="font-size: 10px; min-width: 35px; color: var(--accent);">All</span>
+              </div>
+            </div>
+            
+            <div class="pruning-section">
+              <label class="pruning-label">Hide Operator Types</label>
+              <div class="type-filters-grid" id="typeFiltersGrid">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <button id="resetPruning" style="width: 100%; margin-top: 12px; padding: 6px; font-size: 10px; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; border-radius: 4px;">Reset All</button>
+          </div>
+        </div>
+
         <!-- Slowest Operators Panel -->
         <div class="slowest-panel collapsed" id="slowestPanel">
           <div class="slowest-panel-header">

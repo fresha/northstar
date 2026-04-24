@@ -235,7 +235,9 @@ export function processOverview(json) {
   // Add execution-level stats
   analysis.executionStats = {
     allocatedMemory: execution.QueryAllocatedMemoryUsage || 'N/A',
+    deallocatedMemory: execution.QueryDeallocatedMemoryUsage || 'N/A',
     peakMemory: execution.QueryPeakMemoryUsagePerNode || 'N/A',
+    sumMemory: execution.QuerySumMemoryUsage || 'N/A',
     cpuTime: execution.QueryCumulativeCpuTime || 'N/A',
     operatorTime: execution.QueryCumulativeOperatorTime || 'N/A',
     scanTime: execution.QueryCumulativeScanTime || 'N/A',

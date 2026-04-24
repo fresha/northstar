@@ -468,24 +468,40 @@ function renderQuickStats(analysis) {
   const container = document.getElementById('quickStatsGrid');
   const stats = analysis.executionStats;
 
-  const statCards = [
+  const timeCards = [
     { label: 'Wall Time', value: formatTime(analysis.queryWallTime), type: 'time' },
     { label: 'Active Time', value: formatTime(analysis.totalActiveTime), type: 'time', tooltip: 'Total CPU work time (excludes waiting)' },
     { label: 'Operator Time', value: stats.operatorTime, type: 'time' },
     { label: 'Scan Time', value: stats.scanTime, type: 'time' },
     { label: 'Network Time', value: stats.networkTime, type: 'time' },
     { label: 'CPU Time', value: stats.cpuTime, type: 'time' },
-    { label: 'Allocated Memory', value: stats.allocatedMemory, type: 'bytes' },
-    { label: 'Peak Memory/Node', value: stats.peakMemory, type: 'bytes' },
-    { label: 'Spill Bytes', value: stats.spillBytes, type: stats.spillBytes !== '0 B' && stats.spillBytes !== '0.000 B' ? 'danger' : 'bytes' },
   ];
 
-  container.innerHTML = statCards.map(stat => `
+  const memoryCards = [
+    { label: 'Allocated Memory', value: stats.allocatedMemory, type: 'bytes', tooltip: 'Cumulative bytes allocated across all BEs — allocation churn, not peak usage. Compare with Deallocated: close values mean memory was reused (healthy); a big gap means memory piled up (possible leak or long-held hash table).' },
+    { label: 'Deallocated Memory', value: stats.deallocatedMemory, type: 'bytes', tooltip: 'Cumulative bytes freed across all BEs. Should track closely with Allocated — a large gap means memory was held for the query\'s duration.' },
+    { label: 'Peak Memory/Node', value: stats.peakMemory, type: 'bytes', tooltip: 'Highest concurrent memory on the hottest BE. This is what\'s actually bounded by RAM and query_mem_limit. Under 80% of node capacity is healthy.' },
+    { label: 'Sum Memory', value: stats.sumMemory, type: 'bytes', tooltip: 'Sum of each BE\'s peak memory — a rough cluster-wide footprint, slightly overstated since peaks rarely happen at the same instant.' },
+    { label: 'Spill Bytes', value: stats.spillBytes, type: stats.spillBytes !== '0 B' && stats.spillBytes !== '0.000 B' ? 'danger' : 'bytes', tooltip: 'Bytes written to disk when memory pressure exceeded limits. Non-zero means the query exceeded its memory budget — expect latency impact.' },
+  ];
+
+  const renderCards = (cards) => cards.map(stat => `
     <div class="stat-card"${stat.tooltip ? ` data-tooltip="${stat.tooltip}"` : ''}>
       <div class="stat-label">${stat.label}</div>
       <div class="stat-value ${stat.type}">${stat.value}</div>
     </div>
   `).join('');
+
+  container.innerHTML = `
+    <div class="stat-group">
+      <div class="stat-group-label">Time</div>
+      <div class="stat-group-grid">${renderCards(timeCards)}</div>
+    </div>
+    <div class="stat-group">
+      <div class="stat-group-label">Memory</div>
+      <div class="stat-group-grid">${renderCards(memoryCards)}</div>
+    </div>
+  `;
 }
 
 /**

@@ -98,7 +98,7 @@ export function analyzeFragments(fragments, execution) {
  * Extract planner timing data (values in seconds)
  * Parses keys like "-- Total[1] 1s149ms": "" to extract timing values
  */
-function extractPlannerTiming(planner) {
+export function extractPlannerTiming(planner) {
   if (!planner || typeof planner !== 'object') {
     return null;
   }

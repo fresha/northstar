@@ -7,7 +7,8 @@ import { findConnectorScans } from './scanParser.js';
 import { findHashJoins, combineJoinOperators, calculateJoinStats, sumOperatorTimesByPlanNodeId, extractJoinMetrics } from './joinParser.js';
 import { trackEvent } from './analytics.js';
 import { loadFromUrl, extractPasteId } from './urlLoader.js';
-import { extractFragments, analyzeFragments } from './overviewParser.js';
+import { extractFragments, analyzeFragments, extractPlannerTiming } from './overviewParser.js';
+import { renderComparison, initCompareUI } from './compareRender.js';
 
 // Compare type labels configuration
 const COMPARE_LABELS = {
@@ -59,7 +60,10 @@ function extractCompareData(json) {
   const fragments = extractFragments(execution);
   const { totalActiveTime } = analyzeFragments(fragments, execution);
 
-  return { summary, execution, scans, joinMetrics, joinStats, totalActiveTime };
+  // Planner phase timing (seconds) for the planning vs execution comparison
+  const plannerTiming = extractPlannerTiming(query.Planner || {});
+
+  return { summary, execution, scans, joinMetrics, joinStats, totalActiveTime, plannerTiming };
 }
 
 /**
@@ -77,32 +81,6 @@ function renderLoadedDropZone(dropZone, type, summary, displayText) {
     <p>${summary['Query ID'] || 'Unknown'}</p>
     <p>Duration: ${summary['Total'] || 'N/A'}</p>
   `;
-}
-
-/**
- * Calculate change percentage and classification between baseline and optimized values
- * @param {number} baselineNum - Baseline numeric value
- * @param {number} optimizedNum - Optimized numeric value
- * @param {boolean} lowerIsBetter - Whether lower values are better
- * @returns {Object} { change, improved, changeClass, changeSymbol, changeArrow }
- */
-function calculateChange(baselineNum, optimizedNum, lowerIsBetter) {
-  const change = baselineNum > 0 ? ((optimizedNum - baselineNum) / baselineNum) * 100 : 0;
-  const improved = lowerIsBetter ? change < 0 : change > 0;
-  const changeClass = Math.abs(change) < 1 ? 'neutral' : (improved ? 'improved' : 'regressed');
-  const changeSymbol = change > 0 ? '+' : '';
-
-  // Arrow direction: down for decrease, up for increase, approx for neutral
-  let changeArrow;
-  if (Math.abs(change) < 1) {
-    changeArrow = '\u2248'; // ≈
-  } else if (change < 0) {
-    changeArrow = '\u2193'; // ↓
-  } else {
-    changeArrow = '\u2191'; // ↑
-  }
-
-  return { change, improved, changeClass, changeSymbol, changeArrow };
 }
 
 /**
@@ -175,7 +153,7 @@ function loadCompareFile(file, type, dropZone) {
       }
 
       // Extract data using helper
-      const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime } = extractCompareData(json);
+      const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime, plannerTiming } = extractCompareData(json);
 
       compareData[type] = {
         summary,
@@ -184,6 +162,7 @@ function loadCompareFile(file, type, dropZone) {
         joins: joinMetrics,
         joinStats,
         totalActiveTime,
+        plannerTiming,
         filename: file.name
       };
 
@@ -198,7 +177,7 @@ function loadCompareFile(file, type, dropZone) {
 
       // Check if both files are loaded
       if (compareData.baseline && compareData.optimized) {
-        renderComparison();
+        renderComparison(compareData);
       }
 
       // Update share button visibility (comparison data now available)
@@ -215,234 +194,6 @@ function loadCompareFile(file, type, dropZone) {
 }
 
 /**
- * Render the comparison view
- */
-function renderComparison() {
-  const results = document.getElementById('compareResults');
-  results.classList.add('visible');
-
-  const baseline = compareData.baseline;
-  const optimized = compareData.optimized;
-
-  // Render query info
-  document.getElementById('compareMetaBaseline').innerHTML = `
-    <span>Query ID:</span><strong>${baseline.summary['Query ID'] || 'N/A'}</strong>
-    <span>Duration:</span><strong>${baseline.summary['Total'] || 'N/A'}</strong>
-  `;
-  document.getElementById('compareMetaOptimized').innerHTML = `
-    <span>Query ID:</span><strong>${optimized.summary['Query ID'] || 'N/A'}</strong>
-    <span>Duration:</span><strong>${optimized.summary['Total'] || 'N/A'}</strong>
-  `;
-
-  // Memory comparison
-  const memoryMetrics = [
-    { key: 'QueryAllocatedMemoryUsage', label: 'Allocated Memory' },
-    { key: 'QuerySumMemoryUsage', label: 'Sum Memory Usage' },
-  ];
-  renderCompareCards('compareMemoryCards', memoryMetrics, baseline.execution, optimized.execution, true);
-
-  // Time comparison
-  const timeMetrics = [
-    { key: 'QueryExecutionWallTime', label: 'Wall Time' },
-    { key: 'QueryCumulativeCpuTime', label: 'CPU Time' },
-    { key: 'QueryCumulativeScanTime', label: 'Scan Time' },
-    { key: 'QueryCumulativeOperatorTime', label: 'Operator Time' },
-    { key: 'QueryCumulativeNetworkTime', label: 'Network Time' },
-  ];
-  renderCompareCards('compareTimeCards', timeMetrics, baseline.execution, optimized.execution, true);
-
-  // Active time comparison (computed from fragment/pipeline data)
-  const activeTimeCards = [
-    {
-      label: 'Active Time',
-      baseline: baseline.totalActiveTime,
-      optimized: optimized.totalActiveTime,
-      format: 'time',
-      lowerIsBetter: true
-    },
-  ];
-  document.getElementById('compareTimeCards').innerHTML += generateCompareCardsHTML(activeTimeCards);
-
-  // Scan metrics comparison
-  const scanCards = [
-    {
-      label: 'Connector Scan Operators',
-      baseline: baseline.scans.length,
-      optimized: optimized.scans.length,
-      lowerIsBetter: true
-    },
-    {
-      label: 'Total Bytes Read',
-      baseline: sumMetric(baseline.scans, 'BytesRead', 'unique') + sumMetric(baseline.scans, 'AppIOBytesRead', 'unique') + sumMetric(baseline.scans, 'DataCacheReadBytes', 'unique'),
-      optimized: sumMetric(optimized.scans, 'BytesRead', 'unique') + sumMetric(optimized.scans, 'AppIOBytesRead', 'unique') + sumMetric(optimized.scans, 'DataCacheReadBytes', 'unique'),
-      format: 'bytes',
-      lowerIsBetter: true
-    },
-    {
-      label: 'Total Rows Scanned',
-      baseline: sumMetric(baseline.scans, 'RawRowsRead', 'unique'),
-      optimized: sumMetric(optimized.scans, 'RawRowsRead', 'unique'),
-      format: 'number',
-      lowerIsBetter: true
-    },
-    {
-      label: 'Total Rows Read',
-      baseline: sumMetric(baseline.scans, 'RowsRead', 'unique'),
-      optimized: sumMetric(optimized.scans, 'RowsRead', 'unique'),
-      format: 'number',
-      lowerIsBetter: true
-    },
-  ];
-  document.getElementById('compareScanCards').innerHTML = generateCompareCardsHTML(scanCards);
-
-  // Join metrics comparison
-  // Note: Time metrics are sum of avg time per instance, not total query time
-  const joinCards = [
-    {
-      label: 'Join Operators',
-      baseline: baseline.joinStats.totalJoins,
-      optimized: optimized.joinStats.totalJoins,
-      lowerIsBetter: true
-    },
-    {
-      label: 'Hash Table Memory',
-      baseline: baseline.joinStats.totalHashTableMemoryBytes,
-      optimized: optimized.joinStats.totalHashTableMemoryBytes,
-      format: 'bytes',
-      lowerIsBetter: true
-    },
-    {
-      label: 'Rows Spilled',
-      baseline: baseline.joinStats.totalRowsSpilled,
-      optimized: optimized.joinStats.totalRowsSpilled,
-      format: 'number',
-      lowerIsBetter: true
-    },
-    {
-      label: 'Join Time (Avg/Instance)',
-      baseline: baseline.joinStats.totalTimeSeconds,
-      optimized: optimized.joinStats.totalTimeSeconds,
-      format: 'time',
-      lowerIsBetter: true
-    },
-    {
-      label: 'Build Time (Avg/Instance)',
-      baseline: baseline.joinStats.totalBuildTimeSeconds,
-      optimized: optimized.joinStats.totalBuildTimeSeconds,
-      format: 'time',
-      lowerIsBetter: true
-    },
-    {
-      label: 'Probe Time (Avg/Instance)',
-      baseline: baseline.joinStats.totalProbeTimeSeconds,
-      optimized: optimized.joinStats.totalProbeTimeSeconds,
-      format: 'time',
-      lowerIsBetter: true
-    },
-  ];
-  document.getElementById('compareJoinCards').innerHTML = generateCompareCardsHTML(joinCards);
-}
-
-/**
- * Render comparison cards from execution object
- */
-function renderCompareCards(containerId, metrics, baselineExec, optimizedExec, lowerIsBetter) {
-  const container = document.getElementById(containerId);
-
-  container.innerHTML = metrics.map(metric => {
-    const baselineVal = baselineExec[metric.key] || 'N/A';
-    const optimizedVal = optimizedExec[metric.key] || 'N/A';
-
-    const baselineNum = parseNumericValue(baselineVal);
-    const optimizedNum = parseNumericValue(optimizedVal);
-
-    const { change, changeClass, changeSymbol, changeArrow } = calculateChange(baselineNum, optimizedNum, lowerIsBetter);
-
-    // Bullet chart: scale both bars relative to the larger value
-    const maxVal = Math.max(baselineNum, optimizedNum);
-    const baselinePct = maxVal > 0 ? (baselineNum / maxVal) * 100 : 0;
-    const optimizedPct = maxVal > 0 ? (optimizedNum / maxVal) * 100 : 0;
-
-    return `
-      <div class="compare-card ${changeClass}">
-        <div class="compare-card-header">
-          <div class="compare-card-label">${metric.label}</div>
-          <div class="compare-change-badge ${changeClass}">
-            <span class="change-arrow">${changeArrow}</span>
-            <span class="change-pct">${changeSymbol}${change.toFixed(1)}%</span>
-          </div>
-        </div>
-        <div class="compare-bullet-bar">
-          <div class="bullet-bar-baseline" style="width: ${baselinePct}%"></div>
-          <div class="bullet-bar-optimized" style="width: ${optimizedPct}%"></div>
-        </div>
-        <div class="compare-values">
-          <div class="compare-value baseline">
-            <span class="value-num">${baselineVal}</span>
-          </div>
-          <span class="compare-arrow">\u2192</span>
-          <div class="compare-value optimized">
-            <span class="value-num">${optimizedVal}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-/**
- * Generate HTML for comparison cards with custom values
- */
-function generateCompareCardsHTML(cards) {
-  return cards.map(card => {
-    const baselineNum = card.baseline;
-    const optimizedNum = card.optimized;
-
-    const formatValue = (val) => {
-      if (card.format === 'bytes') return formatBytes(val);
-      if (card.format === 'number') return formatNumber(val);
-      if (card.format === 'time') return formatTime(val);
-      return val;
-    };
-
-    const baselineDisplay = formatValue(baselineNum);
-    const optimizedDisplay = formatValue(optimizedNum);
-
-    const { change, changeClass, changeSymbol, changeArrow } = calculateChange(baselineNum, optimizedNum, card.lowerIsBetter);
-
-    // Bullet chart: scale both bars relative to the larger value
-    const maxVal = Math.max(baselineNum, optimizedNum);
-    const baselinePct = maxVal > 0 ? (baselineNum / maxVal) * 100 : 0;
-    const optimizedPct = maxVal > 0 ? (optimizedNum / maxVal) * 100 : 0;
-
-    return `
-      <div class="compare-card ${changeClass}">
-        <div class="compare-card-header">
-          <div class="compare-card-label">${card.label}</div>
-          <div class="compare-change-badge ${changeClass}">
-            <span class="change-arrow">${changeArrow}</span>
-            <span class="change-pct">${changeSymbol}${change.toFixed(1)}%</span>
-          </div>
-        </div>
-        <div class="compare-bullet-bar">
-          <div class="bullet-bar-baseline" style="width: ${baselinePct}%"></div>
-          <div class="bullet-bar-optimized" style="width: ${optimizedPct}%"></div>
-        </div>
-        <div class="compare-values">
-          <div class="compare-value baseline">
-            <span class="value-num">${baselineDisplay}</span>
-          </div>
-          <span class="compare-arrow">\u2192</span>
-          <div class="compare-value optimized">
-            <span class="value-num">${optimizedDisplay}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-/**
  * Initialize comparison functionality
  */
 export function initCompare() {
@@ -450,6 +201,7 @@ export function initCompare() {
   setupCompareDropZone('compareDropOptimized', 'compareFileOptimized', 'optimized');
   setupCompareUrlLoading('loadUrlBaseline', 'compareDropBaseline', 'baseline');
   setupCompareUrlLoading('loadUrlOptimized', 'compareDropOptimized', 'optimized');
+  initCompareUI();
 }
 
 /**
@@ -566,7 +318,7 @@ async function loadCompareFromUrl(url, type, dropZone) {
     }
 
     // Extract data using helper
-    const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime } = extractCompareData(json);
+    const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime, plannerTiming } = extractCompareData(json);
 
     compareData[type] = {
       summary,
@@ -575,6 +327,7 @@ async function loadCompareFromUrl(url, type, dropZone) {
       joins: joinMetrics,
       joinStats,
       totalActiveTime,
+      plannerTiming,
       filename: 'From URL'
     };
 
@@ -590,7 +343,7 @@ async function loadCompareFromUrl(url, type, dropZone) {
 
     // Check if both files are loaded
     if (compareData.baseline && compareData.optimized) {
-      renderComparison();
+      renderComparison(compareData);
     }
 
     // Update share button visibility
@@ -652,7 +405,7 @@ export function loadCompareFromJson(baselineJson, optimizedJson, source) {
 
   // Render comparison if both loaded
   if (compareData.baseline && compareData.optimized) {
-    renderComparison();
+    renderComparison(compareData);
   }
 
   // Update share button visibility
@@ -671,7 +424,7 @@ function processCompareJson(json, type, displayName) {
   }
 
   // Extract data using helper
-  const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime } = extractCompareData(json);
+  const { summary, execution, scans, joinMetrics, joinStats, totalActiveTime, plannerTiming } = extractCompareData(json);
 
   compareData[type] = {
     summary,
@@ -680,6 +433,7 @@ function processCompareJson(json, type, displayName) {
     joins: joinMetrics,
     joinStats,
     totalActiveTime,
+    plannerTiming,
     filename: displayName
   };
 

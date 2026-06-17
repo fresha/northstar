@@ -440,6 +440,7 @@ export function calculateJoinStats(joins) {
     totalHashTableMemory: formatBytes(totalHashTableMemoryBytes),
     totalHashTableMemoryBytes: totalHashTableMemoryBytes,
     maxHashTableMemory: formatBytes(maxHashTableMemoryBytes),
+    maxHashTableMemoryBytes: maxHashTableMemoryBytes,
     totalRowsSpilled: totalRowsSpilled
   };
 }

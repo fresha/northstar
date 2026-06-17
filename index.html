@@ -326,28 +326,79 @@
           </div>
         </div>
 
-        <!-- Memory Comparison -->
-        <div class="compare-cards-section">
-          <h3>Memory Comparison</h3>
-          <div class="compare-cards-grid" id="compareMemoryCards"></div>
+        <!-- Sub-tab navigation -->
+        <div class="compare-subtabs">
+          <button class="compare-subtab-btn active" data-subtab="summary">Summary</button>
+          <button class="compare-subtab-btn" data-subtab="scan">Scan</button>
+          <button class="compare-subtab-btn" data-subtab="join">Join</button>
         </div>
 
-        <!-- Time Comparison -->
-        <div class="compare-cards-section">
-          <h3>Time Comparison</h3>
-          <div class="compare-cards-grid" id="compareTimeCards"></div>
+        <!-- ===== SUMMARY sub-panel ===== -->
+        <div class="compare-subpanel active" id="compareSub-summary">
+          <!-- Planning vs Execution Headline -->
+          <div class="compare-cards-section">
+            <h3>Planning vs Execution</h3>
+            <div id="comparePlanExec"></div>
+          </div>
+
+          <!-- Planning Phases -->
+          <div class="compare-cards-section">
+            <h3>Planning Phases</h3>
+            <div id="comparePlanningCards"></div>
+          </div>
+
+          <!-- Execution: Time | Memory | Shape as three columns in one card -->
+          <div class="compare-cards-section">
+            <div class="compare-cols-3">
+              <div class="compare-col-group">
+                <h4>Execution Time</h4>
+                <div id="compareTimeCards"></div>
+              </div>
+              <div class="compare-col-group">
+                <h4>Memory</h4>
+                <div id="compareMemoryCards"></div>
+              </div>
+              <div class="compare-col-group">
+                <h4>Execution Shape</h4>
+                <div id="compareShapeCards"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Scan Metrics Comparison -->
-        <div class="compare-cards-section">
-          <h3>Scan Metrics Comparison</h3>
-          <div class="compare-cards-grid" id="compareScanCards"></div>
+        <!-- ===== SCAN sub-panel ===== -->
+        <div class="compare-subpanel" id="compareSub-scan">
+          <div class="compare-cards-section">
+            <h3>Scan Summary</h3>
+            <div id="compareScanCards"></div>
+          </div>
+          <div class="compare-cards-section">
+            <h3>Scan Comparison</h3>
+            <p class="node-compare-hint">Pick a scan node on each side to compare them head to head.</p>
+            <div class="scan-type-toggle" id="scanTypeToggle"></div>
+            <div class="node-compare-pickers">
+              <label class="node-picker baseline">📊 Baseline<select id="scanPickBaseline"></select></label>
+              <label class="node-picker optimized">🚀 Optimized<select id="scanPickOptimized"></select></label>
+            </div>
+            <div class="node-compare-detail" id="scanNodeDetail"></div>
+          </div>
         </div>
 
-        <!-- Join Metrics Comparison -->
-        <div class="compare-cards-section">
-          <h3>Join Metrics Comparison</h3>
-          <div class="compare-cards-grid" id="compareJoinCards"></div>
+        <!-- ===== JOIN sub-panel ===== -->
+        <div class="compare-subpanel" id="compareSub-join">
+          <div class="compare-cards-section">
+            <h3>Join Summary</h3>
+            <div id="compareJoinCards"></div>
+          </div>
+          <div class="compare-cards-section">
+            <h3>Join Comparison</h3>
+            <p class="node-compare-hint">Pick a join node on each side to compare them head to head.</p>
+            <div class="node-compare-pickers">
+              <label class="node-picker baseline">📊 Baseline<select id="joinPickBaseline"></select></label>
+              <label class="node-picker optimized">🚀 Optimized<select id="joinPickOptimized"></select></label>
+            </div>
+            <div class="node-compare-detail" id="joinNodeDetail"></div>
+          </div>
         </div>
       </div>
     </div>

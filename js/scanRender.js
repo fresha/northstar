@@ -508,6 +508,52 @@ function getSkewClass(ratio) {
 }
 
 /**
+ * Resolve the raw value for a scan cell given its column config.
+ * Shared by the Scan tab body renderer and the comparison view so computed
+ * columns (skew, cache-hit, compaction health, etc.) stay in one place.
+ * Returns: a string (meta/common/unique), a number (pct/ratio computed),
+ * a formatted string (TotalBytesRead/AvgFileSize), or an object (skew/health).
+ */
+export function getScanRawValue(scan, col) {
+  if (col.source === 'meta') return scan[col.key];
+  if (col.source === 'common') return (scan.commonMetrics || {})[col.key];
+  if (col.source === 'unique') return (scan.uniqueMetrics || {})[col.key];
+  if (col.source === 'computed') {
+    if (col.key === 'OperatorSkew') return computeSkew(scan, 'OperatorTotalTime');
+    if (col.key === 'ScanSkew') return computeSkew(scan, 'ScanTime');
+    if (col.key === 'MaxScanTime') return scan.uniqueMetrics['__MAX_OF_ScanTime'] || null;
+    if (col.key === 'TotalBytesRead') {
+      const cacheBytes = parseNumericValue(scan.uniqueMetrics['DataCacheReadBytes']);
+      const remoteBytes = parseNumericValue(scan.uniqueMetrics['FSIOBytesRead']);
+      return formatBytes(cacheBytes + remoteBytes);
+    }
+    if (col.key === 'CacheHitRate') {
+      const cacheBytes = parseNumericValue(scan.uniqueMetrics['DataCacheReadBytes']);
+      const remoteBytes = parseNumericValue(scan.uniqueMetrics['FSIOBytesRead']);
+      const total = cacheBytes + remoteBytes;
+      return total > 0 ? ((cacheBytes / total) * 100) : null;
+    }
+    if (col.key === 'CompressionRatio') {
+      const compressed = parseNumericValue(scan.uniqueMetrics['RequestBytesRead']);
+      const uncompressed = parseNumericValue(scan.uniqueMetrics['RequestBytesReadUncompressed']);
+      return compressed > 0 ? (uncompressed / compressed) : null;
+    }
+    if (col.key === 'AvgFileSize') {
+      const ranges = parseNumericValue(scan.uniqueMetrics['ScanRanges']);
+      const size = parseNumericValue(scan.uniqueMetrics['ScanRangesSize']);
+      return ranges > 0 ? formatBytes(size / ranges) : null;
+    }
+    if (col.key === 'RowGroupFilterRate') {
+      const total = parseNumericValue(scan.uniqueMetrics['TotalRowGroups']);
+      const filtered = parseNumericValue(scan.uniqueMetrics['FilteredRowGroups']);
+      return total > 0 ? ((filtered / total) * 100) : null;
+    }
+    if (col.key === 'CompactionHealth') return computeCompactionHealth(scan);
+  }
+  return undefined;
+}
+
+/**
  * Render table body rows (config-driven)
  */
 function renderTableBodyForConfig(scans, metricsConfig, tbodyId, state) {
@@ -518,47 +564,8 @@ function renderTableBodyForConfig(scans, metricsConfig, tbodyId, state) {
     const scanTime = parseNumericValue(scan.uniqueMetrics.ScanTime);
 
     const cells = metricsConfig.map((col, idx) => {
-      // Get value based on source type
-      let value;
-      if (col.source === 'meta') {
-        value = scan[col.key];
-      } else if (col.source === 'common') {
-        value = scan.commonMetrics[col.key];
-      } else if (col.source === 'unique') {
-        value = scan.uniqueMetrics[col.key];
-      } else if (col.source === 'computed') {
-        // Handle computed values
-        if (col.key === 'OperatorSkew') {
-          value = computeSkew(scan, 'OperatorTotalTime');
-        } else if (col.key === 'ScanSkew') {
-          value = computeSkew(scan, 'ScanTime');
-        } else if (col.key === 'MaxScanTime') {
-          value = scan.uniqueMetrics['__MAX_OF_ScanTime'] || null;
-        } else if (col.key === 'TotalBytesRead') {
-          const cacheBytes = parseNumericValue(scan.uniqueMetrics['DataCacheReadBytes']);
-          const remoteBytes = parseNumericValue(scan.uniqueMetrics['FSIOBytesRead']);
-          value = formatBytes(cacheBytes + remoteBytes);
-        } else if (col.key === 'CacheHitRate') {
-          const cacheBytes = parseNumericValue(scan.uniqueMetrics['DataCacheReadBytes']);
-          const remoteBytes = parseNumericValue(scan.uniqueMetrics['FSIOBytesRead']);
-          const total = cacheBytes + remoteBytes;
-          value = total > 0 ? ((cacheBytes / total) * 100) : null;
-        } else if (col.key === 'CompressionRatio') {
-          const compressed = parseNumericValue(scan.uniqueMetrics['RequestBytesRead']);
-          const uncompressed = parseNumericValue(scan.uniqueMetrics['RequestBytesReadUncompressed']);
-          value = compressed > 0 ? (uncompressed / compressed) : null;
-        } else if (col.key === 'AvgFileSize') {
-          const ranges = parseNumericValue(scan.uniqueMetrics['ScanRanges']);
-          const size = parseNumericValue(scan.uniqueMetrics['ScanRangesSize']);
-          value = ranges > 0 ? formatBytes(size / ranges) : null;
-        } else if (col.key === 'RowGroupFilterRate') {
-          const total = parseNumericValue(scan.uniqueMetrics['TotalRowGroups']);
-          const filtered = parseNumericValue(scan.uniqueMetrics['FilteredRowGroups']);
-          value = total > 0 ? ((filtered / total) * 100) : null;
-        } else if (col.key === 'CompactionHealth') {
-          value = computeCompactionHealth(scan);
-        }
-      }
+      // Get value based on source type (shared with the comparison view)
+      let value = getScanRawValue(scan, col);
 
       // Apply styling based on type
       let displayValue = value ?? '-';

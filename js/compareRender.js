@@ -317,8 +317,8 @@ export function renderComparison(data) {
   const oShape = executionShape(optimized.execution);
   // Plan Size is the byte weight of that shape: the serialized plan the FE ships to
   // every BE. It gets a real verdict (smaller is cheaper) rather than the neutral
-  // treatment of the counts, and it's deterministic — while the Deploy timer swings
-  // with cluster load, a delta here is genuine signal. Hidden when absent (older FEs).
+  // treatment of the counts, since it's a property of the plan rather than of cluster
+  // load, so it's stable across runs. Hidden when absent (older FEs).
   const bPlanSize = baseline.plannerTiming?.deployDataSize || 0;
   const oPlanSize = optimized.plannerTiming?.deployDataSize || 0;
   document.getElementById('compareShapeCards').innerHTML = renderCompareRows([
@@ -330,7 +330,7 @@ export function renderComparison(data) {
       base: bPlanSize,
       opt: oPlanSize,
       format: 'bytes',
-      tooltip: 'DeployDataSize \u2014 serialized plan shipped from FE to every BE. Deterministic, unlike the Deploy timer, so this delta is real signal rather than cluster noise.',
+      tooltip: 'DeployDataSize \u2014 serialized query plan shipped from the FE to every BE. Grows with plan complexity \u00d7 fragment instances.',
     }] : []),
   ]);
 

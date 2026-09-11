@@ -130,15 +130,13 @@ function renderIcebergDetailSection(planner) {
 
 /**
  * Caption row under Deploy: the serialized plan size the FE shipped to the BEs.
- * Explains *why* Deploy cost what it did — and unlike the Deploy timer it's
- * deterministic, so it's the honest number to quote when comparing plans.
+ * Explains what the Deploy phase actually moved. Unlike the Deploy timer this is
+ * a property of the plan, not of cluster load, so it's stable across runs.
  */
 function renderPlanSizeRow(bytes) {
-  const tooltip = 'DeployDataSize \u2014 bytes of serialized plan the FE ships to every BE during Deploy. ' +
-    'Grows with plan complexity \u00d7 fragment instances. Deterministic: unlike Deploy time it ' +
-    'does not move with cluster load. Setting thrift_plan_protocol = \'compact\' shrinks it ' +
-    'substantially (~60% on a measured dashboard query) with no latency cost detected \u2014 the win ' +
-    'is FE heap and network pressure under concurrency.';
+  const tooltip = 'DeployDataSize \u2014 bytes of serialized query plan the FE ships to every BE ' +
+    'during Deploy. Grows with plan complexity \u00d7 fragment instances. Larger plans cost more ' +
+    'to serialize, transfer and deserialize, and hold more FE heap while deploying.';
   return `
     <div class="planner-phase-row indent plan-size" data-tooltip="${tooltip}">
       <span class="planner-phase-label">Plan Size</span>

@@ -113,6 +113,7 @@ export function extractPlannerTiming(planner) {
     parser: 0,
     pending: 0,
     prepare: 0,
+    deployDataSize: 0,
   };
 
   // Parse planner keys to extract timing
@@ -138,6 +139,12 @@ export function extractPlannerTiming(planner) {
     else if (name === 'pending') timing.pending = value;
     else if (name === 'prepare') timing.prepare = value;
   }
+
+  // DeployDataSize: bytes of the serialized plan the FE ships to the BEs during Deploy.
+  // Plain byte count rather than a timed phase, so it sits outside the key-parsing loop.
+  // Unlike the Deploy timer it's deterministic — it depends on plan shape and
+  // thrift_plan_protocol, not on cluster load.
+  timing.deployDataSize = parseNumericValue(planner.DeployDataSize);
 
   // Parse ICEBERG.getScanFiles timing (has dots so the main regex above won't match)
   for (const key of Object.keys(planner)) {

@@ -129,6 +129,25 @@ function renderIcebergDetailSection(planner) {
 }
 
 /**
+ * Caption row under Deploy: the serialized plan size the FE shipped to the BEs.
+ * Explains *why* Deploy cost what it did — and unlike the Deploy timer it's
+ * deterministic, so it's the honest number to quote when comparing plans.
+ */
+function renderPlanSizeRow(bytes) {
+  const tooltip = 'DeployDataSize \u2014 bytes of serialized plan the FE ships to every BE during Deploy. ' +
+    'Grows with plan complexity \u00d7 fragment instances. Deterministic: unlike Deploy time it ' +
+    'does not move with cluster load. Setting thrift_plan_protocol = \'compact\' shrinks it ' +
+    'substantially (~60% on a measured dashboard query) with no latency cost detected \u2014 the win ' +
+    'is FE heap and network pressure under concurrency.';
+  return `
+    <div class="planner-phase-row indent plan-size" data-tooltip="${tooltip}">
+      <span class="planner-phase-label">Plan Size</span>
+      <span class="planner-phase-caption">${formatBytes(bytes)} serialized</span>
+    </div>
+  `;
+}
+
+/**
  * Build the collapsible planner phase breakdown HTML
  * Structure: Grand total, then Parser, Planner Total (with indented sub-phases), Pending, Prepare, Deploy
  * All bars are relative to grand total planning time.
@@ -184,6 +203,11 @@ function buildPlannerBreakdown(planner) {
     // Insert indented sub-phases right after Planner Total
     if (phase.label === 'Planner Total' && subPhases.length > 0) {
       rows += subPhases.map(p => renderRow(p, true)).join('');
+    }
+    // Caption the Deploy phase with the payload it shipped. Rendered without a bar:
+    // it's bytes, and every bar here is scaled to planning time.
+    if (phase.label === 'Deploy' && planner.deployDataSize > 0) {
+      rows += renderPlanSizeRow(planner.deployDataSize);
     }
     // Insert Iceberg timing bars right after Prepare
     if (phase.label === 'Prepare' && planner.icebergTables?.length > 0) {

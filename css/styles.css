@@ -3464,6 +3464,18 @@ td.cmp-rowlabel.cmp-opt-row { color: var(--success); }
   transition: width 0.3s ease;
 }
 
+/* Byte caption under Deploy — no bar (bars here are scaled to planning time) */
+.planner-phase-row.plan-size {
+  cursor: help;
+}
+
+.planner-phase-caption {
+  flex: 1;
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .planner-phase-time {
   width: 60px;
   flex-shrink: 0;

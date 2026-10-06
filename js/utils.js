@@ -74,8 +74,14 @@ export function formatTime(seconds) {
   // Convert to nanoseconds for precision
   const ns = seconds * 1e9;
 
-  if (ns >= 3600e9) return (ns / 3600e9).toFixed(2) + 'h';
-  if (ns >= 60e9) return (ns / 60e9).toFixed(2) + 'm';
+  // Minutes and up: compound units like StarRocks ("1m 43s", "2h 5m"), not decimal minutes
+  if (ns >= 60e9) {
+    const totalSec = Math.round(seconds);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+  }
   if (ns >= 1e9) return (ns / 1e9).toFixed(2) + 's';
   if (ns >= 1e6) return (ns / 1e6).toFixed(2) + 'ms';
   if (ns >= 1e3) return (ns / 1e3).toFixed(2) + 'us';

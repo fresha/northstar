@@ -25,22 +25,16 @@ export function parseNumericValue(str) {
     return value * (multipliers[unit] || 1);
   }
 
-  // Handle time formats: "1.592ms", "103.060ms", "2s345ms", "26s134ms"
-  // First try compound format like "26s134ms"
-  const compoundTimeMatch = str.match(/(\d+)s(\d+)ms/i);
-  if (compoundTimeMatch) {
-    const seconds = parseInt(compoundTimeMatch[1]);
-    const milliseconds = parseInt(compoundTimeMatch[2]);
-    return seconds + (milliseconds / 1000);
-  }
-  
-  // Simple time format
-  const timeMatch = str.match(/([\d.]+)\s*(ns|us|ms|s|m|h)\b/i);
-  if (timeMatch) {
-    const value = parseFloat(timeMatch[1]);
-    const unit = timeMatch[2].toLowerCase();
+  // Handle time formats: "1.592ms", "212.38us", "5s136ms", "1m43s", "2h5m".
+  // StarRocks writes durations as one or more <number><unit> tokens; sum them all.
+  // Unit alternatives are ordered so ms/us/ns win over m/s.
+  if (/^(?:\d+(?:\.\d+)?\s*(?:h|ms|m|us|ns|s)\s*)+$/.test(str)) {
     const multipliers = { ns: 1e-9, us: 1e-6, ms: 1e-3, s: 1, m: 60, h: 3600 };
-    return value * (multipliers[unit] || 1);
+    let total = 0;
+    for (const [, value, unit] of str.matchAll(/(\d+(?:\.\d+)?)\s*(h|ms|m|us|ns|s)/g)) {
+      total += parseFloat(value) * multipliers[unit];
+    }
+    return total;
   }
 
   // Try to parse as plain number
